@@ -47,6 +47,7 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+
 #define DEVICE_DEBUG_LEVEL    3
 
 #if (DEVICE_DEBUG_LEVEL > 0)
@@ -76,6 +77,10 @@ extern "C" {
 #else
 #define DeviceDbgLog(...)
 #endif
+
+
+#define   DEVICE_OK   0
+#define   DEVICE_FAIL 1
 
 /* USER CODE END EM */
 

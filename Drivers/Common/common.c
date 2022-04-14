@@ -23,7 +23,7 @@ void DelayMs(volatile int32_t n)
   */
 void DelayUs(volatile int32_t us)
 {  //practical limit of 25,000us
-  us = us * 168 / 4;
+  us = us * 72 / 4;
   while (us)
   {
     us--;

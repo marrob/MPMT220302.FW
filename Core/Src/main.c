@@ -21,18 +21,84 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdio.h>
 #include "LiveLed.h"
 #include "hd44780.h"
-#include <string.h>
+#include "slu.h"
+#include "mux.h"
+#include "common.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+typedef enum _CtrlStatesTypeDef
+{
+  SDEV_START,                   //0
+  SDEV_WAIT,                    //1
+  SDEV_IDLE,                    //2
+  SDEV_WAIT_FOR_CARD,           //3
+  WORK,
+
+  STOP,
+  END,
+
+}CtrlStatesTypeDef;
+
 typedef struct _AppTypeDef
 {
   uint8_t Address;
+  uint8_t MuxRow;
+  uint16_t FailCounter;
+  uint8_t TestIndex;
+
+  struct
+  {
+    CtrlStatesTypeDef Next;
+    CtrlStatesTypeDef Curr;
+    CtrlStatesTypeDef Pre;
+  }State;
 
 }DeviceTypeDef;
+
+
+typedef enum _TestType
+{
+    TEST_ROW_OPEN = 0,
+    TEST_ROW_CLOSE,
+    TEST_AUX_OPEN,
+    TEST_AUX_CLOSE
+
+}TestType_t;
+
+typedef struct
+{
+  char Name[25];
+ TestType_t TestType;
+  AnalogBus_t AnalogBus;
+  uint8_t MaxRow;
+
+} TestTableItem_t;
+
+
+TestTableItem_t TestTable[] =
+{
+  /*01234567890123456789*/
+  {"1. ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
+  {"2. ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
+  {"3. ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
+  {"4. ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
+  {"5. ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
+  {"6. ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
+  {"7. ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
+  {"8. ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
+  {"9. ABUS1-AUXs OPEN  ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
+  {"10. ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
+};
+
+#define TestTableCount (sizeof(TestTable)/sizeof(TestTableItem_t))
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -53,7 +119,7 @@ UART_HandleTypeDef huart1;
 
 DeviceTypeDef Device;
 LiveLED_HnadleTypeDef hLiveLed;
-
+char String[20];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,10 +134,135 @@ void LiveLedOn(void);
 void FailLedOn(void);
 void FailLedOff(void);
 
+uint8_t WorkTask(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+uint8_t WorkTask(void)
+{
+  static uint32_t timestamp = 0;
+  switch(Device.State.Curr)
+  {
+    case SDEV_START:
+    {
+        Device.State.Next = SDEV_WAIT;
+        timestamp = HAL_GetTick();
+      break;
+    }
+
+    case SDEV_WAIT:
+    {
+      if((HAL_GetTick() - timestamp) > 1000 )
+      {
+        Device.State.Next = SDEV_WAIT_FOR_CARD;
+      }
+      break;
+    }
+
+    case SDEV_WAIT_FOR_CARD:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+                        /*01234567890123456789*/
+          LcdxyPuts(0,0," KARTYA AZONOSITASA ");
+          timestamp = HAL_GetTick();
+      }
+
+      if(HAL_GetTick() - timestamp > 5000)
+        Device.State.Next = WORK;
+      break;
+    }
+    case WORK:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        Device.TestIndex = 0;
+        Device.MuxRow = 1;
+        LcdxyPuts(0,0, TestTable[Device.TestIndex].Name);
+        BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+      }
+
+      if( Device.MuxRow < TestTable[Device.TestIndex].MaxRow)
+      {
+
+        if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+        {
+          MMuxSetRow(Device.MuxRow);
+
+        }
+
+        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+        {
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
+            SluSetRelay(SLU_E8783A_ABUS2_TO_ROW, Device.MuxRow );
+
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
+            SluSetRelay(SLU_E8783A_ABUS3_TO_ROW, Device.MuxRow );
+
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
+            SluSetRelay(SLU_E8783A_ABUS4_TO_ROW, Device.MuxRow );
+
+          MMuxSetRow(Device.MuxRow);
+
+        }
+
+        if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
+        {
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+          MMuxSetAux(Device.MuxRow);
+        }
+
+        if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
+        {
+          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+          MMuxSetAux(Device.MuxRow);
+        }
+
+
+        memset(String,' ', sizeof(String));
+        sprintf(String, "Row: %d", Device.MuxRow);
+        LcdxyPuts(0,1, String);
+        Device.MuxRow++;
+        DelayMs(200);
+
+      }
+      else
+      {
+        Device.TestIndex++;
+        Device.MuxRow = 1;
+        if( Device.TestIndex > TestTableCount - 1 )
+        {
+          BusSetCurrent(BUS_OFF);
+          Device.State.Next = END;
+        }
+        else
+        {
+          LcdxyPuts(0,0, TestTable[Device.TestIndex].Name);
+          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+        }
+      }
+      break;
+
+    }
+    case END:
+    {               /*01234567890123456789*/
+      LcdxyPuts(0,0, "     ELKESZULTEM    ");
+    }
+  }
+
+  Device.State.Pre = Device.State.Curr;
+  Device.State.Curr = Device.State.Next;
+
+  return DEVICE_OK;
+}
 
 /* USER CODE END 0 */
 
@@ -107,6 +298,12 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  /*** Reset Everyting ***/
+  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
+  DelayMs(100);
+  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+  DelayMs(5);
+
   /*** LiveLed ***/
   hLiveLed.LedOffFnPtr = &LiveLedOff;
   hLiveLed.LedOnFnPtr = &LiveLedOn;
@@ -117,21 +314,30 @@ int main(void)
   LcdInit(LCD_FUNC_4B_2L, LCD_MODE_DISP, LCD_MODE_DISP);
   LcdPuts("Proba");
 
+
+
+
+  SluInit(&hspi2);
+  SluGetModelNumber();
+  MuxInit(&hspi2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   static uint32_t timestamp;
-  char string[20];
-  uint32_t counter = 0;
+
 
   while (1)
   {
+
+    WorkTask();
+
    if(HAL_GetTick() - timestamp > 100)
    {
      timestamp = HAL_GetTick();
-     sprintf(string,"%u", counter++);
-     LcdxyPuts(1,1, string);
+     //sprintf(string,"%lu", counter++);
+     //LcdxyPuts(1,1, string);
    }
 
 	LiveLedTask(&hLiveLed);
@@ -268,21 +474,26 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, ADC_CS_Pin|COM_EN_Pin|BUS4_EN_Pin|BUS3_EN_Pin
-                          |LCD_BKL_Pin|TP14_Pin|TP15_Pin|MMUX_CS_Pin
-                          |IMUX_CS_Pin|SLU_CS_Pin|SLU_RW_Pin|LCD_DB4_Pin
-                          |LCD_DB5_Pin|LCD_DB6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, ADC_CS_Pin|MMUX_CS_Pin|IMUX_CS_Pin|SLU_CS_Pin
+                          |LCD_DB4_Pin|LCD_DB5_Pin|LCD_DB6_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, COM_EN_Pin|BUS4_EN_Pin|BUS3_EN_Pin|LCD_BKL_Pin
+                          |TP14_Pin|TP15_Pin|SLU_RW_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, BUS2_EN_Pin|BUS1_EN_Pin|LIVE_LED_Pin|TP13_Pin
-                          |SLU_SLOT_Pin|SLU_STB_Pin|SLU_EN_Pin, GPIO_PIN_RESET);
+                          |SLU_STB_Pin|SLU_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, RST_Pin|DAC_CS_Pin|LCD_E_Pin|LCD_RW_Pin
-                          |LCD_RS_Pin, GPIO_PIN_RESET);
+                          |LCD_RS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LCD_DB7_GPIO_Port, LCD_DB7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SLU_SLOT_GPIO_Port, SLU_SLOT_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LCD_DB7_GPIO_Port, LCD_DB7_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : ALevel_Pin BLevel_Pin */
   GPIO_InitStruct.Pin = ALevel_Pin|BLevel_Pin;
@@ -304,9 +515,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BUS2_EN_Pin BUS1_EN_Pin LIVE_LED_Pin TP13_Pin
-                           SLU_SLOT_Pin SLU_STB_Pin SLU_EN_Pin */
+                           SLU_STB_Pin SLU_EN_Pin */
   GPIO_InitStruct.Pin = BUS2_EN_Pin|BUS1_EN_Pin|LIVE_LED_Pin|TP13_Pin
-                          |SLU_SLOT_Pin|SLU_STB_Pin|SLU_EN_Pin;
+                          |SLU_STB_Pin|SLU_EN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -326,6 +537,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SLU_SLOT_Pin */
+  GPIO_InitStruct.Pin = SLU_SLOT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(SLU_SLOT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LCD_DB7_Pin */
   GPIO_InitStruct.Pin = LCD_DB7_Pin;
@@ -394,3 +612,176 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+
+/*
+uint8_t WorkTask(void)
+{
+  static uint32_t timestamp = 0;
+  switch(Device.State.Curr)
+  {
+    case SDEV_START:
+    {
+        Device.State.Next = SDEV_WAIT;
+        timestamp = HAL_GetTick();
+      break;
+    }
+
+    case SDEV_WAIT:
+    {
+      if((HAL_GetTick() - timestamp) > 1000 )
+      {
+        Device.State.Next = SDEV_WAIT_FOR_CARD;
+      }
+      break;
+    }
+
+    case SDEV_WAIT_FOR_CARD:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," KARTYA AZONOSITASA ");
+          timestamp = HAL_GetTick();
+      }
+
+      if(HAL_GetTick() - timestamp > 5000)
+        Device.State.Next = E8783A_ABUS1_ROWS_OPEN;
+      break;
+    }
+    case E8783A_ABUS1_ROWS_OPEN:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 1. ABUS1-ROWs Open ");
+          BusSetCurrent(BUS_ABUS1);
+          Device.MuxRow = 1;
+      }
+      if(Device.MuxRow < 64)
+      {
+        MMuxSetRow(Device.MuxRow);
+      }
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(100);
+      if(Device.MuxRow > 64)
+        Device.State.Next = E8783A_ABUS2_ROWS_OPEN;
+      break;
+    }
+    case E8783A_ABUS2_ROWS_OPEN:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 2. ABUS2-ROWs Open  ");
+          BusSetCurrent(BUS_ABUS2);
+          Device.MuxRow = 1;
+      }
+      if(Device.MuxRow < 64)
+      {
+        MMuxSetRow(Device.MuxRow);
+      }
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(50);
+      if(Device.MuxRow > 64)
+        Device.State.Next = E8783A_ABUS3_ROWS_OPEN;
+      break;
+    }
+    case E8783A_ABUS3_ROWS_OPEN:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 3. ABUS3-ROWs Open  ");
+          BusSetCurrent(BUS_ABUS3);
+          Device.MuxRow = 1;
+      }
+      if(Device.MuxRow < 64)
+      {
+        MMuxSetRow(Device.MuxRow);
+      }
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(50);
+      if(Device.MuxRow > 64)
+        Device.State.Next = E8783A_ABUS4_ROWS_OPEN;
+      break;
+    }
+    case E8783A_ABUS4_ROWS_OPEN:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 4. ABUS4-ROWs Open  ");
+          BusSetCurrent(BUS_ABUS4);
+          Device.MuxRow = 1;
+      }
+      MMuxSetRow(Device.MuxRow);
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(50);
+      if(Device.MuxRow > 64)
+        Device.State.Next = E8783A_ABUS1_ROWS_CLOSE;
+      break;
+    }
+    case E8783A_ABUS1_ROWS_CLOSE:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 5. ABUS1-ROWs Close  ");
+          BusSetCurrent(BUS_ABUS1);
+          Device.MuxRow = 1;
+      }
+
+      SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow);
+      MMuxSetRow(Device.MuxRow);
+
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(50);
+      if(Device.MuxRow > 64)
+        Device.State.Next = E8783A_ABUS2_ROWS_CLOSE;
+      break;
+    }
+    case E8783A_ABUS2_ROWS_CLOSE:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+          LcdxyPuts(0,0," 6. ABUS2-ROWs Close  ");
+          BusSetCurrent(BUS_ABUS2);
+          Device.MuxRow = 1;
+      }
+
+      SluSetRelay(SLU_E8783A_ABUS2_TO_ROW, Device.MuxRow);
+      MMuxSetRow(Device.MuxRow);
+
+      memset(String,' ', sizeof(String));
+      sprintf(String, "Row: %d", Device.MuxRow);
+      LcdxyPuts(0,1, String);
+      Device.MuxRow++;
+      DelayMs(50);
+      if(Device.MuxRow > 64)
+        Device.State.Next = END;
+      break;
+    }
+    case END:
+    {
+      memset(String,' ', sizeof(String));
+      sprintf(String, "END");
+      LcdxyPuts(0,1, String);
+    }
+  }
+
+  Device.State.Pre = Device.State.Curr;
+  Device.State.Curr = Device.State.Next;
+
+  return DEVICE_OK;
+}
+*/
