@@ -13,9 +13,14 @@
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
-#define SLU_OK          0
-#define SLU_FAIL        1
+#define SLU_OK            0
+#define SLU_FAIL          1
 #define SLU_ARG_ERROR     2
+#define SLU_UNKNWON       3
+
+#define SLU_REG_CARD_TYPE         0x00
+#define SLU_REG_CONFIG            0x01
+#define SLU_REG_STAT_CONT         0x02
 
 #define SLU_E8783A_ROW_TO_AUX     0x06
 #define SLU_E8783A_ABUS1_TO_ROW   0x0E
@@ -33,6 +38,10 @@
 #define SLU_E8782A_ABUS3_TO_ROW   0x21
 #define SLU_E8782A_ABUS4_TO_INST  0x26
 #define SLU_E8782A_ABUS4_TO_ROW   0x29
+
+
+#define SLU_MODEL_NUMBER_SIZE 20
+
 
 /* Exported functions ------------------------------------------------------- */
 
