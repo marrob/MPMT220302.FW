@@ -15,14 +15,14 @@
 
 
 /* Private define ------------------------------------------------------------*/
-#define MCP23S08_IODIRA   0x00    /* IODIR – I/O DIRECTION REGISTER     */
-#define MCP23S08_OLATA    0x0A    /* OUTPUT LATCH REGISTER              */
-#define MCP23S08_GPIOA    0x09    /* GENERAL PURPOSE I/O PORT REGISTER  */
+#define MCP23S08_IODIRA       0x00    /* IODIR – I/O DIRECTION REGISTER     */
+#define MCP23S08_IOCONA       0x05    /* EXPANDER CONFIGURATION REGISTER    */
+#define MCP23S08_OLATA        0x0A    /* OUTPUT LATCH REGISTER              */
+#define MCP23S08_GPIOA        0x09    /* GENERAL PURPOSE I/O PORT REGISTER  */
+#define MCP23S08_IOCON_HAEN   0x08    /* Hardware Address Enable bit        */
 
 #define SPI_TIMEOUT_MS   100
 
-#define SLU_MODEL_NUMBER_SIZE 20
-#define SLU_CARD_TYPE_REG 0x01
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
@@ -31,7 +31,7 @@ static SPI_HandleTypeDef *Spi;
 typedef struct _SluCardTypeItem
 {
   uint8_t Value;
-  char ModelNumber[SLU_MODEL_NUMBER_SIZE];
+  char ModelName[SLU_MODEL_NUMBER_SIZE];
 }SluCardTypeItem_t;
 
 SluCardTypeItem_t SluCardTypes[] =
@@ -68,11 +68,17 @@ void SluInit(SPI_HandleTypeDef *spi)
   /***Power Supply Enable ***/
   HAL_GPIO_WritePin(SLU_EN_GPIO_Port, SLU_EN_Pin, GPIO_PIN_SET);
 
-
-
   /*** Select Card ***/
   HAL_GPIO_WritePin(SLU_SLOT_GPIO_Port, SLU_SLOT_Pin, GPIO_PIN_RESET);
 
+  /*** Hardware Address of MCP23S08 Enable ***/
+  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN}, 3);
+  SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN}, 3);
+
+
+  uint8_t type = SluReadReg(0x00);
+
+  printf("%d", type);
 }
 
 /*
@@ -118,18 +124,23 @@ uint8_t SluReadReg(uint8_t address)
   SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IODIRA, 0x00}, 3);
   /*write address to output*/
   SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_OLATA, address}, 3);
+
   /*data-IO expander direction -> input*/
   SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IODIRA, 0xFF}, 3);
+
   /*** Read From SLU ***/
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_SET);
-  /*** Make a Strobe ***/
+
+  /*** Make Strobe ON ***/
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_RESET);
-  DelayMs(1);
-  HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_SET);
-  DelayMs(1);
+
   /*read data from expander*/
-  retval = SluMcp23sRead((uint8_t[]){ 0x43, MCP23S08_IODIRA}, 2);
-  /*** Read From SLU ***/
+  retval = SluMcp23sRead((uint8_t[]){ 0x43, MCP23S08_GPIOA}, 2);
+
+  /*** Make Strobe OFF ***/
+  HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_SET);
+
+  /*** Write To SLU ez legyen a default, hogy ne akdjon össze a busz***/
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_RESET);
   return retval;
 }
@@ -153,19 +164,15 @@ uint8_t SluWriteReg(uint8_t address, uint8_t data)
   return SLU_OK;
 }
 
-char* SluGetModelNumber(void)
+uint8_t SluGetModelName(const char *name, uint8_t value)
 {
-  static char model_number[SLU_MODEL_NUMBER_SIZE];
-  strcpy(model_number, "Ismeretlen Kartya");
-
-  uint8_t value = SluReadReg(SLU_CARD_TYPE_REG);
-
+  strcpy(name, "Ismeretlen Kartya");
   for(uint8_t i=0; i < (sizeof(SluCardTypes)/sizeof(SluCardTypeItem_t)); i++)
   {
     if(SluCardTypes[i].Value == value)
-      strcpy(model_number, SluCardTypes[i].ModelNumber);
+      strcpy(name, SluCardTypes[i].ModelName);
   }
-  return model_number;
+  return SLU_OK;
 }
 
 static inline void SluMcp23sWrite (uint8_t *data, uint8_t length)
@@ -178,10 +185,11 @@ static inline void SluMcp23sWrite (uint8_t *data, uint8_t length)
 static inline uint8_t SluMcp23sRead (uint8_t *data, uint8_t length)
 {
   uint8_t retval[] = {0};
+
   HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_RESET);
   HAL_SPI_Transmit(Spi, data, length, SPI_TIMEOUT_MS);
-  HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_SET);
   HAL_SPI_Receive(Spi, retval, 1, SPI_TIMEOUT_MS);
+  HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_SET);
   return retval[0];
 }
 

@@ -215,7 +215,6 @@ return MUX_OK;
 }
 
 
-
 void MMuxExSxWrite(uint8_t e, uint8_t s)
 {
   /*"Ex"-IO expander direction -> output*/

@@ -134,6 +134,8 @@ void LiveLedOn(void);
 void FailLedOn(void);
 void FailLedOff(void);
 
+void Backlight(uint8_t state);
+
 uint8_t WorkTask(void);
 
 /* USER CODE END PFP */
@@ -170,6 +172,8 @@ uint8_t WorkTask(void)
           LcdxyPuts(0,0," KARTYA AZONOSITASA ");
           timestamp = HAL_GetTick();
       }
+
+      LcdxyPuts(0,0,SluGetModelNumber());
 
       if(HAL_GetTick() - timestamp > 5000)
         Device.State.Next = WORK;
@@ -312,11 +316,9 @@ int main(void)
 
   /*** LCD ***/
   LcdInit(LCD_FUNC_4B_2L, LCD_MODE_DISP, LCD_MODE_DISP);
-  LcdPuts("Proba");
-
-
-
-
+         /*01234567890123456789*/
+  LcdPuts("     Hello World    ");
+  Backlight(1);
   SluInit(&hspi2);
   SluGetModelNumber();
   MuxInit(&hspi2);
@@ -331,7 +333,7 @@ int main(void)
   while (1)
   {
 
-    WorkTask();
+   // WorkTask();
 
    if(HAL_GetTick() - timestamp > 100)
    {
@@ -410,7 +412,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -568,6 +570,15 @@ void ConsoleWrite(char *str)
   HAL_UART_Transmit(&huart1, (uint8_t*)str, strlen(str), 100);
 }
 
+
+void Backlight(uint8_t state)
+{
+  if(state)
+    HAL_GPIO_WritePin(LCD_BKL_GPIO_Port, LCD_BKL_Pin, GPIO_PIN_SET);
+  else
+    HAL_GPIO_WritePin(LCD_BKL_GPIO_Port, LCD_BKL_Pin, GPIO_PIN_RESET);
+}
+
 /* LEDs ---------------------------------------------------------------------*/
 void LiveLedOn(void)
 {
@@ -612,176 +623,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-
-/*
-uint8_t WorkTask(void)
-{
-  static uint32_t timestamp = 0;
-  switch(Device.State.Curr)
-  {
-    case SDEV_START:
-    {
-        Device.State.Next = SDEV_WAIT;
-        timestamp = HAL_GetTick();
-      break;
-    }
-
-    case SDEV_WAIT:
-    {
-      if((HAL_GetTick() - timestamp) > 1000 )
-      {
-        Device.State.Next = SDEV_WAIT_FOR_CARD;
-      }
-      break;
-    }
-
-    case SDEV_WAIT_FOR_CARD:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," KARTYA AZONOSITASA ");
-          timestamp = HAL_GetTick();
-      }
-
-      if(HAL_GetTick() - timestamp > 5000)
-        Device.State.Next = E8783A_ABUS1_ROWS_OPEN;
-      break;
-    }
-    case E8783A_ABUS1_ROWS_OPEN:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 1. ABUS1-ROWs Open ");
-          BusSetCurrent(BUS_ABUS1);
-          Device.MuxRow = 1;
-      }
-      if(Device.MuxRow < 64)
-      {
-        MMuxSetRow(Device.MuxRow);
-      }
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(100);
-      if(Device.MuxRow > 64)
-        Device.State.Next = E8783A_ABUS2_ROWS_OPEN;
-      break;
-    }
-    case E8783A_ABUS2_ROWS_OPEN:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 2. ABUS2-ROWs Open  ");
-          BusSetCurrent(BUS_ABUS2);
-          Device.MuxRow = 1;
-      }
-      if(Device.MuxRow < 64)
-      {
-        MMuxSetRow(Device.MuxRow);
-      }
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(50);
-      if(Device.MuxRow > 64)
-        Device.State.Next = E8783A_ABUS3_ROWS_OPEN;
-      break;
-    }
-    case E8783A_ABUS3_ROWS_OPEN:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 3. ABUS3-ROWs Open  ");
-          BusSetCurrent(BUS_ABUS3);
-          Device.MuxRow = 1;
-      }
-      if(Device.MuxRow < 64)
-      {
-        MMuxSetRow(Device.MuxRow);
-      }
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(50);
-      if(Device.MuxRow > 64)
-        Device.State.Next = E8783A_ABUS4_ROWS_OPEN;
-      break;
-    }
-    case E8783A_ABUS4_ROWS_OPEN:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 4. ABUS4-ROWs Open  ");
-          BusSetCurrent(BUS_ABUS4);
-          Device.MuxRow = 1;
-      }
-      MMuxSetRow(Device.MuxRow);
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(50);
-      if(Device.MuxRow > 64)
-        Device.State.Next = E8783A_ABUS1_ROWS_CLOSE;
-      break;
-    }
-    case E8783A_ABUS1_ROWS_CLOSE:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 5. ABUS1-ROWs Close  ");
-          BusSetCurrent(BUS_ABUS1);
-          Device.MuxRow = 1;
-      }
-
-      SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow);
-      MMuxSetRow(Device.MuxRow);
-
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(50);
-      if(Device.MuxRow > 64)
-        Device.State.Next = E8783A_ABUS2_ROWS_CLOSE;
-      break;
-    }
-    case E8783A_ABUS2_ROWS_CLOSE:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-          LcdxyPuts(0,0," 6. ABUS2-ROWs Close  ");
-          BusSetCurrent(BUS_ABUS2);
-          Device.MuxRow = 1;
-      }
-
-      SluSetRelay(SLU_E8783A_ABUS2_TO_ROW, Device.MuxRow);
-      MMuxSetRow(Device.MuxRow);
-
-      memset(String,' ', sizeof(String));
-      sprintf(String, "Row: %d", Device.MuxRow);
-      LcdxyPuts(0,1, String);
-      Device.MuxRow++;
-      DelayMs(50);
-      if(Device.MuxRow > 64)
-        Device.State.Next = END;
-      break;
-    }
-    case END:
-    {
-      memset(String,' ', sizeof(String));
-      sprintf(String, "END");
-      LcdxyPuts(0,1, String);
-    }
-  }
-
-  Device.State.Pre = Device.State.Curr;
-  Device.State.Curr = Device.State.Next;
-
-  return DEVICE_OK;
-}
-*/
