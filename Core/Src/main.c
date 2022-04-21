@@ -39,8 +39,10 @@ typedef enum _CtrlStatesTypeDef
   SDEV_WAIT,                    //1
   SDEV_IDLE,                    //2
   SDEV_WAIT_FOR_CARD,           //3
+  SDEV_NO_CARD,
   WORK,
-
+  SDEV_WROK_U7178A,
+  SDEV_ERROR,
   STOP,
   END,
 
@@ -119,7 +121,7 @@ UART_HandleTypeDef huart1;
 
 DeviceTypeDef Device;
 LiveLED_HnadleTypeDef hLiveLed;
-char String[20];
+char String[21];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -166,17 +168,61 @@ uint8_t WorkTask(void)
 
     case SDEV_WAIT_FOR_CARD:
     {
+      static uint8_t cardTryCnt;
       if(Device.State.Pre != Device.State.Curr)
       {
                         /*01234567890123456789*/
           LcdxyPuts(0,0," KARTYA AZONOSITASA ");
           timestamp = HAL_GetTick();
+          cardTryCnt = 0;
       }
+      if(HAL_GetTick() - timestamp > 1000)
+      {
+        uint8_t card = SluReadReg(SLU_REG_CARD_TYPE);
+        if(SluGetModelName(String, card)== SLU_OK)
+        {
+            LcdxyPuts(0,1,String);
+            if(card == 0x19)
+              Device.State.Next = SDEV_WROK_U7178A;
+            else
+              Device.State.Next = WORK;
+        }
+        else
+        {              /*01234567890123456789*/
+          sprintf(String,"Keresem...Varj! %d ", cardTryCnt);
+          LcdxyPuts(0,1,String);
+          timestamp = HAL_GetTick();
+          cardTryCnt++;
+          if(cardTryCnt > 3)
+            Device.State.Next = SDEV_NO_CARD;
+        }
+      }
+      break;
+    }
 
-      LcdxyPuts(0,0,SluGetModelNumber());
+    case SDEV_NO_CARD:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+                       /*01234567890123456789*/
+          LcdxyPuts(0,1,"    Nincs kartya.   ");
+          LcdxyPuts(0,3,"PIROS:Ismet");
 
-      if(HAL_GetTick() - timestamp > 5000)
-        Device.State.Next = WORK;
+
+
+      }
+      break;
+    }
+
+    case SDEV_WROK_U7178A:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+                     /*01234567890123456789*/
+        LcdxyPuts(0,0,"      U7178A        ");
+
+      }
       break;
     }
     case WORK:
@@ -254,11 +300,15 @@ uint8_t WorkTask(void)
         }
       }
       break;
-
     }
     case END:
     {               /*01234567890123456789*/
       LcdxyPuts(0,0, "     ELKESZULTEM    ");
+    }
+
+    case SDEV_ERROR:
+    {
+      break;
     }
   }
 
@@ -320,7 +370,6 @@ int main(void)
   LcdPuts("     Hello World    ");
   Backlight(1);
   SluInit(&hspi2);
-  //SluGetModelNumber();
   MuxInit(&hspi2);
 
   /* USER CODE END 2 */
@@ -333,7 +382,7 @@ int main(void)
   while (1)
   {
 
-   // WorkTask();
+    WorkTask();
 
    if(HAL_GetTick() - timestamp > 100)
    {

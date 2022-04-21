@@ -81,10 +81,10 @@ void SluInit(SPI_HandleTypeDef *spi)
   SluMcp23sWrite(0x01, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
 
 
-  uint8_t type = SluReadReg(0x00);
+ // uint8_t type = SluReadReg(0x00);
   //uint8_t type = Mcp23S08Read(0x55);
 
-  printf("%d", type);
+  //printf("%d", type);
 }
 
 /*
@@ -164,15 +164,17 @@ uint8_t SluWriteReg(uint8_t address, uint8_t data)
   return SLU_OK;
 }
 
-uint8_t SluGetModelName(const char *name, uint8_t value)
+uint8_t SluGetModelName(char *name, uint8_t value)
 {
-  strcpy(name, "Ismeretlen Kartya");
   for(uint8_t i=0; i < (sizeof(SluCardTypes)/sizeof(SluCardTypeItem_t)); i++)
   {
     if(SluCardTypes[i].Value == value)
+    {
       strcpy(name, SluCardTypes[i].ModelName);
+      return SLU_OK;
+    }
   }
-  return SLU_OK;
+  return SLU_UNKNWON;
 }
 
 uint8_t Mcp23S08Read(uint8_t address)
