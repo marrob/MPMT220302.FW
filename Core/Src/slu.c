@@ -55,8 +55,13 @@ SluCardTypeItem_t SluCardTypes[] =
 };
 
 /* Private function prototypes -----------------------------------------------*/
-static inline void SluMcp23sWrite (uint8_t *data, uint8_t length);
-static inline uint8_t SluMcp23sRead (uint8_t *data, uint8_t length);
+static inline uint8_t SluMcp23sRead (uint8_t mcpaddr, uint8_t reg);
+static inline void SluMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value);
+
+//static inline void SluMcp23sWrite (uint8_t *data, uint8_t length);
+//static inline uint8_t SluMcp23sRead (uint8_t *data, uint8_t length);
+
+uint8_t Mcp23S08Read(uint8_t address);
 /* Private user code ---------------------------------------------------------*/
 
 
@@ -65,18 +70,19 @@ void SluInit(SPI_HandleTypeDef *spi)
 
   Spi = spi;
 
-  /***Power Supply Enable ***/
+  //***Power Supply Enable ***
   HAL_GPIO_WritePin(SLU_EN_GPIO_Port, SLU_EN_Pin, GPIO_PIN_SET);
 
-  /*** Select Card ***/
+  //*** Select Card ***
   HAL_GPIO_WritePin(SLU_SLOT_GPIO_Port, SLU_SLOT_Pin, GPIO_PIN_RESET);
 
-  /*** Hardware Address of MCP23S08 Enable ***/
-  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN}, 3);
-  SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN}, 3);
+  //*** Hardware Address of MCP23S08 Enable ***
+  SluMcp23sWrite(0x00, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
+  SluMcp23sWrite(0x01, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
 
 
   uint8_t type = SluReadReg(0x00);
+  //uint8_t type = Mcp23S08Read(0x55);
 
   printf("%d", type);
 }
@@ -101,7 +107,6 @@ Abus3-Row64: Address:0x25 Data:0x80 -> SluSetRelay(SLU_E8783A_ABUS3_TO_ROW, 64)
 --- E8783A-ABUS4 ---
 Abus4-Row1:  Address:0x26 Data:0x01 -> SluSetRelay(SLU_E8783A_ABUS4_TO_ROW, 1)
 Abus4-Row64: Address:0x2D Data:0x80 -> SluSetRelay(SLU_E8783A_ABUS4_TO_ROW, 64)
-
 */
 uint8_t SluSetRelay(uint8_t base, uint8_t relay)
 {
@@ -117,30 +122,25 @@ uint8_t SluSetRelay(uint8_t base, uint8_t relay)
  return SLU_OK;
 }
 
+
 uint8_t SluReadReg(uint8_t address)
 {
   uint8_t retval = 0x00;
-  /*address-IO expander direction -> output*/
-  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IODIRA, 0x00}, 3);
-  /*write address to output*/
-  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_OLATA, address}, 3);
-
-  /*data-IO expander direction -> input*/
-  SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IODIRA, 0xFF}, 3);
-
-  /*** Read From SLU ***/
+  //address-IO expander direction -> output
+  SluMcp23sWrite(0x00, MCP23S08_IODIRA, 0x00);
+  //write address to output
+  SluMcp23sWrite(0x00, MCP23S08_OLATA, address);
+  //data-IO expander direction -> input
+  SluMcp23sWrite(0x01, MCP23S08_IODIRA, 0xFF);
+  //*** Read From SLU ***
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_SET);
-
-  /*** Make Strobe ON ***/
+  //*** Make Strobe ON ***
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_RESET);
-
-  /*read data from expander*/
-  retval = SluMcp23sRead((uint8_t[]){ 0x43, MCP23S08_GPIOA}, 2);
-
-  /*** Make Strobe OFF ***/
+  //read data from expander
+  retval = SluMcp23sRead(0x01, MCP23S08_GPIOA);
+  //*** Make Strobe OFF ***
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_SET);
-
-  /*** Write To SLU ez legyen a default, hogy ne akdjon össze a busz***/
+  //*** Write To SLU ez legyen a default, hogy ne akdjon össze a busz***
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_RESET);
   return retval;
 }
@@ -148,15 +148,15 @@ uint8_t SluReadReg(uint8_t address)
 uint8_t SluWriteReg(uint8_t address, uint8_t data)
 {
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_RESET);
-  /*address-IO expander direction -> output*/
-  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IODIRA, 0x00}, 3);
-  /*write address to output*/
-  SluMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_OLATA, address}, 3);
-  /*data-IO expander direction -> output*/
-  SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IODIRA, 0x00}, 3);
-  /*write data to data-io expander */
-  SluMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_OLATA, data}, 3);
-  /*** Make a Strobe ***/
+  //address-IO expander direction -> output
+  SluMcp23sWrite(0x00, MCP23S08_IODIRA, 0x00);
+  //write address to output
+  SluMcp23sWrite(0x00, MCP23S08_OLATA, address);
+  //data-IO expander direction -> output
+  SluMcp23sWrite(0x01, MCP23S08_IODIRA, 0x00);
+  //write data to data-io expander
+  SluMcp23sWrite(0x01, MCP23S08_OLATA, data);
+  //*** Make a Strobe ***
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_RESET);
   DelayMs(1);
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_SET);
@@ -175,24 +175,41 @@ uint8_t SluGetModelName(const char *name, uint8_t value)
   return SLU_OK;
 }
 
-static inline void SluMcp23sWrite (uint8_t *data, uint8_t length)
+uint8_t Mcp23S08Read(uint8_t address)
 {
+  uint8_t retval = 0x00;
+  /*** Hardware Address of MCP23S08 Enable ***/
+  SluMcp23sWrite(0x00, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
+  SluMcp23sWrite(0x01, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
+  /*address-IO expander direction -> output*/
+  SluMcp23sWrite(0x00, MCP23S08_IODIRA, 0x00);
+  /*write address to output*/
+  SluMcp23sWrite(0x00, MCP23S08_OLATA, address);
+  /*data-IO expander direction -> input*/
+  SluMcp23sWrite(0x01, MCP23S08_IODIRA, 0xFF);
+  /*read data from IO-expander*/
+  retval = SluMcp23sRead(0x01, MCP23S08_GPIOA);
+  return retval;
+}
+
+
+static inline void SluMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value)
+{
+  uint8_t tx[] = { 0x40 | mcpaddr << 1, reg, value};
   HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(Spi, data, length, SPI_TIMEOUT_MS);
+  HAL_SPI_Transmit(Spi, tx, sizeof(tx), SPI_TIMEOUT_MS);
   HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_SET);
 }
 
-static inline uint8_t SluMcp23sRead (uint8_t *data, uint8_t length)
+static inline uint8_t SluMcp23sRead (uint8_t mcpaddr, uint8_t reg)
 {
   uint8_t retval[] = {0};
-
+  uint8_t tx[] = { 0x41 | mcpaddr << 1, reg};
   HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(Spi, data, length, SPI_TIMEOUT_MS);
+  HAL_SPI_Transmit(Spi, tx, sizeof(tx), SPI_TIMEOUT_MS);
   HAL_SPI_Receive(Spi, retval, 1, SPI_TIMEOUT_MS);
   HAL_GPIO_WritePin(SLU_CS_GPIO_Port, SLU_CS_Pin, GPIO_PIN_SET);
   return retval[0];
 }
-
-
 
 /************************ (C) COPYRIGHT KonvolucioBt ***********END OF FILE****/

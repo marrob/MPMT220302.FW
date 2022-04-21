@@ -320,7 +320,7 @@ int main(void)
   LcdPuts("     Hello World    ");
   Backlight(1);
   SluInit(&hspi2);
-  SluGetModelNumber();
+  //SluGetModelNumber();
   MuxInit(&hspi2);
 
   /* USER CODE END 2 */
