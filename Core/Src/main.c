@@ -140,6 +140,8 @@ void Backlight(uint8_t state);
 
 uint8_t WorkTask(void);
 
+uint8_t GetBtnRed(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -173,7 +175,7 @@ uint8_t WorkTask(void)
       {
                         /*01234567890123456789*/
           LcdxyPuts(0,0," KARTYA AZONOSITASA ");
-          timestamp = HAL_GetTick();
+          timestamp = HAL_GetTick() + 1000;
           cardTryCnt = 0;
       }
       if(HAL_GetTick() - timestamp > 1000)
@@ -207,10 +209,12 @@ uint8_t WorkTask(void)
                        /*01234567890123456789*/
           LcdxyPuts(0,1,"    Nincs kartya.   ");
           LcdxyPuts(0,3,"PIROS:Ismet");
-
-
-
       }
+        if(GetBtnRed())
+        {
+          LcdClrscr();
+          Device.State.Next = SDEV_WAIT_FOR_CARD;
+        }
       break;
     }
 
@@ -637,6 +641,13 @@ void LiveLedOn(void)
 void LiveLedOff(void)
 {
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
+}
+uint8_t red = 0;
+
+uint8_t GetBtnRed(void)
+{
+  red = HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin);
+  return  red == GPIO_PIN_RESET;
 }
 
 /* USER CODE END 4 */
