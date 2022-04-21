@@ -74,10 +74,6 @@ SluRelayItem SLU_U7178A_Loads[]=
 /* Private function prototypes -----------------------------------------------*/
 static inline uint8_t SluMcp23sRead (uint8_t mcpaddr, uint8_t reg);
 static inline void SluMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value);
-
-//static inline void SluMcp23sWrite (uint8_t *data, uint8_t length);
-//static inline uint8_t SluMcp23sRead (uint8_t *data, uint8_t length);
-
 uint8_t Mcp23S08Read(uint8_t address);
 /* Private user code ---------------------------------------------------------*/
 

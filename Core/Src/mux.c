@@ -16,35 +16,107 @@
 
 
 /* Private define ------------------------------------------------------------*/
-#define MCP23S08_IODIRA   0x00    /* IODIR – I/O DIRECTION REGISTER     */
-#define MCP23S08_OLATA    0x0A    /* OUTPUT LATCH REGISTER              */
-#define SPI_TIMEOUT_MS    100
+#define MCP23S08_IODIRA       0x00    /* IODIR – I/O DIRECTION REGISTER     */
+#define MCP23S08_IOCONA       0x05    /* EXPANDER CONFIGURATION REGISTER    */
+#define MCP23S08_OLATA        0x0A    /* OUTPUT LATCH REGISTER              */
+#define MCP23S08_GPIOA        0x09    /* GENERAL PURPOSE I/O PORT REGISTER  */
+#define MCP23S08_IOCON_HAEN   0x08    /* Hardware Address Enable bit        */
+
+
+#define MCP48_CONF_B          1<<7
+#define MCP48_CONF_A          0<<7
+#define MCP48_CONF_1x         1<<5
+#define MCP48_CONF_2x         0<<5
+#define MCP48_CONF_SH         0<<4
+#define MCP48_CONF_EN         1<<4
+
+#define SPI_TIMEOUT_MS   100
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 static SPI_HandleTypeDef *Spi;
 /* Private function prototypes -----------------------------------------------*/
-static inline void MMuxMcp23sWrite (uint8_t *data, uint8_t length);
-static inline void IMuxMcp23sWrite(uint8_t *data, uint8_t length);
+//static inline void MMuxMcp23sWrite (uint8_t *data, uint8_t length);
+
+static inline void MMuxMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value);
+
+static inline void IMuxMcp23sWrite(uint8_t mcpaddr, uint8_t reg, uint8_t value);
+
+void MCP4812SetVolt(uint8_t config, double volts);
+void MCP4812Set(uint8_t config, uint16_t value);
 
 void MMuxExSxWrite(uint8_t e, uint8_t s);
 void IMuxExSxWrite(uint8_t se);
+
+uint8_t GetBLevel(void);
+uint8_t GetALevel(void);
+
+uint16_t MCP3201Get(void);
+double MCP3201GetVolt(void);
 
 /* Private user code ---------------------------------------------------------*/
 
 void MuxInit(SPI_HandleTypeDef *spi)
 {
   Spi = spi;
-  /*"Ex"-IO expander direction -> output*/
-  MMuxMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IODIRA, 0x00}, 3);
-  /*"Sx"-IO expander direction -> output*/
-  MMuxMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_IODIRA, 0x00}, 3);
+
+  //Hardware Address of MCP23S08 Enable
+  MMuxMcp23sWrite(0x00, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
+  MMuxMcp23sWrite(0x01, MCP23S08_IOCONA, MCP23S08_IOCON_HAEN);
+
+  //"Ex & Sx"-IO expander direction -> output
+  MMuxMcp23sWrite(0x00, MCP23S08_IODIRA, 0x00);
+  MMuxMcp23sWrite(0x01, MCP23S08_IODIRA, 0x00);
+
+  //default value of "Ex & Sx"
   MMuxExSxWrite(0xFF, 0x00);
 
   /*"SxEx"-IO expander direction -> output*/
-  IMuxMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_IODIRA, 0x00}, 3);
+  IMuxMcp23sWrite(0x00, MCP23S08_IODIRA, 0x00);
   IMuxExSxWrite(0x30);
 }
+
+uint32_t high = 0;
+uint32_t low = 0;
+uint16_t adc = 0;
+double volts = 0;
+void MMuxTest(void)
+{
+
+  BusSetCurrent(BUS_ABUS1);
+  MMuxSetRow(1);
+  MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.25);
+  MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 1.75);
+
+  do
+  {
+
+//    adc = MCP3201Get();
+    volts = MCP3201GetVolt();
+    if(GetALevel())
+      high++;
+    else
+      low++;
+
+    DelayMs(500);
+  }while(1);
+}
+
+void MCP4812SetVolt(uint8_t config, double volts)
+{
+  double lsb = 0.004;
+  uint16_t dn = volts / lsb;
+  MCP4812Set(config,dn);
+}
+
+void MCP4812Set(uint8_t config, uint16_t value)
+{
+  uint8_t data[] = {config | (value >> 6) , value << 2 };
+  HAL_GPIO_WritePin(DAC_CS_GPIO_Port, DAC_CS_Pin, GPIO_PIN_RESET);
+  HAL_SPI_Transmit(Spi, data, sizeof(data), SPI_TIMEOUT_MS);
+  HAL_GPIO_WritePin(DAC_CS_GPIO_Port, DAC_CS_Pin, GPIO_PIN_SET);
+}
+
 
 uint8_t MMuxSetRow(uint8_t select)
 {
@@ -218,16 +290,18 @@ return MUX_OK;
 void MMuxExSxWrite(uint8_t e, uint8_t s)
 {
   /*"Ex"-IO expander direction -> output*/
-  MMuxMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_OLATA, e}, 3);
+  MMuxMcp23sWrite(0x00, MCP23S08_OLATA, e);
   /*"Sx"-IO expander direction -> output*/
-  MMuxMcp23sWrite((uint8_t[]){ 0x42, MCP23S08_OLATA, s}, 3);
+  MMuxMcp23sWrite(0x01, MCP23S08_OLATA, s);
 }
 
 
-static inline void MMuxMcp23sWrite (uint8_t *data, uint8_t length)
+
+static inline void MMuxMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value)
 {
+  uint8_t tx[] = { 0x40 | mcpaddr << 1, reg, value};
   HAL_GPIO_WritePin(MMUX_CS_GPIO_Port, MMUX_CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(Spi, data, length, SPI_TIMEOUT_MS);
+  HAL_SPI_Transmit(Spi, tx, sizeof(tx), SPI_TIMEOUT_MS);
   HAL_GPIO_WritePin(MMUX_CS_GPIO_Port, MMUX_CS_Pin, GPIO_PIN_SET);
 }
 
@@ -274,16 +348,16 @@ uint8_t IMUXSet(uint8_t select)
 
 void IMuxExSxWrite(uint8_t se)
 {
-  MMuxMcp23sWrite((uint8_t[]){ 0x40, MCP23S08_OLATA, se}, 3);
+  IMuxMcp23sWrite(0x00, MCP23S08_OLATA, se);
 }
 
-static inline void IMuxMcp23sWrite(uint8_t *data, uint8_t length)
+static inline void IMuxMcp23sWrite(uint8_t mcpaddr, uint8_t reg, uint8_t value)
 {
+  uint8_t tx[] = { 0x40 | mcpaddr << 1, reg, value};
   HAL_GPIO_WritePin(IMUX_CS_GPIO_Port, IMUX_CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(Spi, data, length, SPI_TIMEOUT_MS);
+  HAL_SPI_Transmit(Spi, tx, sizeof(tx), SPI_TIMEOUT_MS);
   HAL_GPIO_WritePin(IMUX_CS_GPIO_Port, IMUX_CS_Pin, GPIO_PIN_SET);
 }
-
 
 void BusSetCurrent(AnalogBus_t analog_bus)
 {
@@ -303,5 +377,34 @@ void BusSetCurrent(AnalogBus_t analog_bus)
     case BUS_ABUS4: HAL_GPIO_WritePin(BUS4_EN_GPIO_Port, BUS4_EN_Pin, GPIO_PIN_SET); break;
   }
 }
+
+uint8_t GetALevel(void)
+{
+  return HAL_GPIO_ReadPin(ALevel_GPIO_Port, ALevel_Pin);
+}
+
+uint8_t GetBLevel(void)
+{
+  return HAL_GPIO_ReadPin(BLevel_GPIO_Port, BLevel_Pin);
+}
+
+double MCP3201GetVolt(void)
+{
+   return MCP3201Get() * 0.001;
+}
+uint16_t MCP3201Get(void)
+{
+  uint16_t retval = 0;
+  uint8_t data[] = {0x00, 0x00};
+  HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_RESET);
+  HAL_SPI_Receive(Spi, data, sizeof(data), SPI_TIMEOUT_MS);
+  HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+  retval = data[0] << 8 | data [1];
+  retval >>= 1;
+  retval &= 0x1FFF;
+  return retval;
+}
+
+
 
 /************************ (C) COPYRIGHT KonvolucioBt ***********END OF FILE****/

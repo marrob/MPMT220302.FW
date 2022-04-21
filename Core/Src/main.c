@@ -175,7 +175,7 @@ uint8_t WorkTask(void)
       {
                         /*01234567890123456789*/
           LcdxyPuts(0,0," KARTYA AZONOSITASA ");
-          timestamp = HAL_GetTick() + 1000;
+          timestamp = HAL_GetTick();
           cardTryCnt = 0;
       }
       if(HAL_GetTick() - timestamp > 1000)
@@ -388,7 +388,7 @@ int main(void)
   Backlight(1);
   SluInit(&hspi2);
   MuxInit(&hspi2);
-
+  //MMuxTest();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -399,7 +399,7 @@ int main(void)
   while (1)
   {
 
-    WorkTask();
+   WorkTask();
 
    if(HAL_GetTick() - timestamp > 100)
    {
@@ -597,14 +597,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : RST_Pin DAC_CS_Pin LCD_E_Pin LCD_RW_Pin
-                           LCD_RS_Pin */
-  GPIO_InitStruct.Pin = RST_Pin|DAC_CS_Pin|LCD_E_Pin|LCD_RW_Pin
-                          |LCD_RS_Pin;
+  /*Configure GPIO pins : RST_Pin LCD_E_Pin LCD_RW_Pin LCD_RS_Pin */
+  GPIO_InitStruct.Pin = RST_Pin|LCD_E_Pin|LCD_RW_Pin|LCD_RS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DAC_CS_Pin */
+  GPIO_InitStruct.Pin = DAC_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(DAC_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SLU_SLOT_Pin */
   GPIO_InitStruct.Pin = SLU_SLOT_Pin;
