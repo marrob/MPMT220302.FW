@@ -220,12 +220,25 @@ uint8_t WorkTask(void)
 
     case SDEV_WROK_U7178A:
     {
+      static uint8_t relay;
+
       if(Device.State.Pre != Device.State.Curr)
       {
         LcdClrscr();
                      /*01234567890123456789*/
         LcdxyPuts(0,0,"      U7178A        ");
+        relay = 0;
+        timestamp = HAL_GetTick();
+      }
 
+      if(HAL_GetTick() - timestamp > 1000)
+      {
+        timestamp = HAL_GetTick();
+        if(relay > 7)
+          relay = 0;
+        SluWriteReg(SLU_REG_U7178A_LOAD, SLU_U7178A_Loads[relay].Value);
+        LcdxyPuts(0,1, SLU_U7178A_Loads[relay].RelayName);
+        relay++;
       }
       break;
     }
@@ -251,16 +264,16 @@ uint8_t WorkTask(void)
         if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
-            SluSetRelay(SLU_E8783A_ABUS2_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.MuxRow );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
-            SluSetRelay(SLU_E8783A_ABUS3_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.MuxRow );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
-            SluSetRelay(SLU_E8783A_ABUS4_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.MuxRow );
 
           MMuxSetRow(Device.MuxRow);
 
@@ -269,14 +282,14 @@ uint8_t WorkTask(void)
         if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
           MMuxSetAux(Device.MuxRow);
         }
 
         if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
           MMuxSetAux(Device.MuxRow);
         }
 

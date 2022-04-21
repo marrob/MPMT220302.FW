@@ -34,25 +34,42 @@ typedef struct _SluCardTypeItem
   char ModelName[SLU_MODEL_NUMBER_SIZE];
 }SluCardTypeItem_t;
 
+
+
+
+
 SluCardTypeItem_t SluCardTypes[] =
 {
-    {0x01, "Agilent E6175A"},
-    {0x02, "Agilent E6176A"},
-    {0x03, "Agilent E6177A"},
-    {0x18, "Agilent E7177A"},
-    {0x19, "Agilent E7178A"},
-    {0x20, "Agilent E7179A"},
-    {0x04, "Agilent E6178B"},
-    {0x05, "Agilent N9378A"},
-    {0x06, "Agilent N9379A"},
-    {0x07, "Agilent N9377A"},
-    {0x0A, "Agilent E8792A"},
-    {0x0B, "Agilent E8793A"},
-    {0x43, "Agilent E8782A"},
-    {0x47, "Agilent E8783A"},
-    {0x14, "Agilent E8794A"},
-    {0x32, "Agilent E6198B"},
+  {0x01, "Agilent E6175A"},
+  {0x02, "Agilent E6176A"},
+  {0x03, "Agilent E6177A"},
+  {0x18, "Agilent E7177A"},
+  {0x19, "Agilent E7178A"},
+  {0x20, "Agilent E7179A"},
+  {0x04, "Agilent E6178B"},
+  {0x05, "Agilent N9378A"},
+  {0x06, "Agilent N9379A"},
+  {0x07, "Agilent N9377A"},
+  {0x0A, "Agilent E8792A"},
+  {0x0B, "Agilent E8793A"},
+  {0x43, "Agilent E8782A"},
+  {0x47, "Agilent E8783A"},
+  {0x14, "Agilent E8794A"},
+  {0x32, "Agilent E6198B"},
 };
+
+SluRelayItem SLU_U7178A_Loads[]=
+{
+  {0x01, "K21-CH1"},
+  {0x02, "K22-CH2"},
+  {0x04, "K23-CH3"},
+  {0x08, "K24-CH4"},
+  {0x10, "K25-CH5"},
+  {0x20, "K26-CH6"},
+  {0x40, "K27-CH7"},
+  {0x80, "K28-CH8"},
+};
+
 
 /* Private function prototypes -----------------------------------------------*/
 static inline uint8_t SluMcp23sRead (uint8_t mcpaddr, uint8_t reg);
