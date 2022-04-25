@@ -17,6 +17,14 @@
 #define MUX_FAIL        1
 #define MUX_ARG_ERROR   2
 
+
+#define MCP48_CONF_B          1<<7
+#define MCP48_CONF_A          0<<7
+#define MCP48_CONF_1x         1<<5
+#define MCP48_CONF_2x         0<<5
+#define MCP48_CONF_SH         0<<4
+#define MCP48_CONF_EN         1<<4
+
 typedef enum _AnalogBus
 {
   BUS_OFF = 0,
@@ -36,6 +44,13 @@ uint8_t MMuxSetRow(uint8_t select);
 uint8_t MMuxSetAux(uint8_t select);
 void MMuxTest(void);
 void BusSetCurrent(AnalogBus_t analog_bus);
+double MCP3201GetVolt(void);
+double GetResistance(double vout);
+uint8_t GetBLevel(void);
+uint8_t GetALevel(void);
+
+void MCP4812SetVolt(uint8_t config, double volts);
+
 
 #endif /* INC_MUX_H_ */
 

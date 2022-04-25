@@ -60,9 +60,9 @@ void SluInit(SPI_HandleTypeDef *spi);
 uint8_t SluReadReg(uint8_t address);
 uint8_t SluWriteReg(uint8_t address, uint8_t data);
 uint8_t SluSetRelay(uint8_t base, uint8_t relay);
-
 uint8_t SluGetModelName(char *name, uint8_t value);
-
+void SluCardSoftReset(void);
+void SluOpenAllRelays(void);
 extern SluRelayItem SLU_U7178A_Loads[];
 
 #endif /* INC_SLU_H_ */

@@ -98,6 +98,10 @@ static void DelayTH(void)
   Delay(10);
 }
 
+/*
+ * sprintf(String,"Resistance:452\xF4);
+ *
+ */
 void LcdxyPuts(uint8_t x, uint8_t y, const char *string)
 {
   LcdxySetCursor(x,y);

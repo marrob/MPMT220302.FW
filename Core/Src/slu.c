@@ -129,7 +129,7 @@ uint8_t SluSetRelay(uint8_t base, uint8_t relay)
   uint8_t data = 0;
   data = 1 << ((relay - 1) % 8);
   address = ((relay - 1) / 8) + base;
-  printf("address:0x%02X data:0x%02X\r\n", address, data);
+  //printf("address:0x%02X data:0x%02X\r\n", address, data);
   SluWriteReg(address, data);
 
  return SLU_OK;
@@ -171,10 +171,18 @@ uint8_t SluWriteReg(uint8_t address, uint8_t data)
   SluMcp23sWrite(0x01, MCP23S08_OLATA, data);
   //*** Make a Strobe ***
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_RESET);
-  DelayMs(1);
   HAL_GPIO_WritePin(SLU_STB_GPIO_Port, SLU_STB_Pin, GPIO_PIN_SET);
-  DelayMs(1);
   return SLU_OK;
+}
+
+void SluCardSoftReset(void)
+{
+  SluWriteReg(SLU_REG_STAT_CONT, 0x01);
+}
+
+void SluOpenAllRelays(void)
+{
+  SluWriteReg(SLU_REG_STAT_CONT, 0x20);
 }
 
 uint8_t SluGetModelName(char *name, uint8_t value)

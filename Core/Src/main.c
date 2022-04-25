@@ -39,11 +39,11 @@ typedef enum _CtrlStatesTypeDef
   SDEV_WAIT,                    //1
   SDEV_IDLE,                    //2
   SDEV_WAIT_FOR_CARD,           //3
-  SDEV_NO_CARD,
-  WORK,
   SDEV_WROK_U7178A,
+  SDEV_WORK_E8783A,
   SDEV_ERROR,
-  STOP,
+  SDEV_NO_CARD,
+  SDEV_NOT_SUPPERTED,
   END,
 
 }CtrlStatesTypeDef;
@@ -51,8 +51,9 @@ typedef enum _CtrlStatesTypeDef
 typedef struct _AppTypeDef
 {
   uint8_t Address;
-  uint8_t MuxRow;
-  uint16_t FailCounter;
+  uint8_t Row;
+  uint16_t FailCnt;
+  uint16_t PassCnt;
   uint8_t TestIndex;
 
   struct
@@ -80,6 +81,7 @@ typedef struct
  TestType_t TestType;
   AnalogBus_t AnalogBus;
   uint8_t MaxRow;
+  uint32_t FailCounter;
 
 } TestTableItem_t;
 
@@ -87,16 +89,16 @@ typedef struct
 TestTableItem_t TestTable[] =
 {
   /*01234567890123456789*/
-  {"1. ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
-  {"2. ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
-  {"3. ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
-  {"4. ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
-  {"5. ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
-  {"6. ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
-  {"7. ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
-  {"8. ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
-  {"9. ABUS1-AUXs OPEN  ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
-  {"10. ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
+ // {"1. ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
+ // {"2. ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
+ // {"3. ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
+ // {"4. ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
+    {"5. ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
+    {"6. ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
+    {"7. ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
+    {"8. ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
+//  {"9. ABUS1-AUXs OPEN  ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
+//  {"10. ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
 };
 
 #define TestTableCount (sizeof(TestTable)/sizeof(TestTableItem_t))
@@ -121,7 +123,7 @@ UART_HandleTypeDef huart1;
 
 DeviceTypeDef Device;
 LiveLED_HnadleTypeDef hLiveLed;
-char String[21];
+char String[80];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -142,6 +144,8 @@ uint8_t WorkTask(void);
 
 uint8_t GetBtnRed(void);
 
+void ConsoleWrite(char *str);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -156,6 +160,12 @@ uint8_t WorkTask(void)
     {
         Device.State.Next = SDEV_WAIT;
         timestamp = HAL_GetTick();
+      break;
+    }
+
+    case SDEV_IDLE:
+    {
+
       break;
     }
 
@@ -186,8 +196,10 @@ uint8_t WorkTask(void)
             LcdxyPuts(0,1,String);
             if(card == 0x19)
               Device.State.Next = SDEV_WROK_U7178A;
+            if(card == 0x47)
+              Device.State.Next = SDEV_WORK_E8783A;
             else
-              Device.State.Next = WORK;
+              Device.State.Next = SDEV_NOT_SUPPERTED;
         }
         else
         {              /*01234567890123456789*/
@@ -242,69 +254,99 @@ uint8_t WorkTask(void)
       }
       break;
     }
-    case WORK:
+    case SDEV_WORK_E8783A:
     {
       if(Device.State.Pre != Device.State.Curr)
       {
+        LcdClrscr();
+                     /*01234567890123456789*/
+        LcdxyPuts(0,0,"      E8783A        ");
         Device.TestIndex = 0;
-        Device.MuxRow = 1;
-        LcdxyPuts(0,0, TestTable[Device.TestIndex].Name);
+        Device.Row = 1;
+        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
         BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+        Device.FailCnt = 0;
+        Device.PassCnt = 0;
+        MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
+        MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
       }
-
-      if( Device.MuxRow < TestTable[Device.TestIndex].MaxRow)
+      //Test Rows Step by Step
+      if( Device.Row <= TestTable[Device.TestIndex].MaxRow)
       {
 
         if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
         {
-          MMuxSetRow(Device.MuxRow);
-
+          MMuxSetRow(Device.Row);
         }
 
         if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
-            SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.Row );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
-            SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.Row );
 
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
-            SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.MuxRow );
+            SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.Row );
 
-          MMuxSetRow(Device.MuxRow);
-
+          MMuxSetRow(Device.Row);
         }
 
         if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
-          MMuxSetAux(Device.MuxRow);
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
+          MMuxSetAux(Device.Row);
         }
 
         if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
         {
           if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.MuxRow );
-          MMuxSetAux(Device.MuxRow);
+            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
+          MMuxSetAux(Device.Row);
         }
 
-
+        DelayMs(100);
         memset(String,' ', sizeof(String));
-        sprintf(String, "Row: %d", Device.MuxRow);
-        LcdxyPuts(0,1, String);
-        Device.MuxRow++;
-        DelayMs(200);
+        double volts = MCP3201GetVolt();
+        double res = GetResistance(volts);
+        if (res > 1000)
+          sprintf(String, "Row:%d R:>1K\xF4 ", Device.Row );
+        if(res < 10)
+          sprintf(String, "Row:%d R:<10\xF4 ", Device.Row );
+        sprintf(String, "Row:%d R:%4.1f\xF4", Device.Row, res );
+        LcdxyPuts(0,2, String);
+        SluOpenAllRelays();
 
+
+        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+        {
+            if(GetBLevel())
+            {
+              /*** 0..225R ***/
+              sprintf(String, "Pass: Row:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.Row, res, volts);
+              Device.PassCnt++;
+            }
+            else
+            { /*** OPEN ***/
+              sprintf(String, "Fail: Row:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.Row, res, volts);
+              Device.FailCnt++;
+            }
+            ConsoleWrite(String);
+        }
+
+        sprintf(String, "OK:%d, NOK:%d", Device.PassCnt, Device.FailCnt);
+        LcdxyPuts(0,3, String);
+        Device.Row++;
       }
       else
       {
         Device.TestIndex++;
-        Device.MuxRow = 1;
+        Device.Row = 1;
         if( Device.TestIndex > TestTableCount - 1 )
         {
           BusSetCurrent(BUS_OFF);
@@ -312,7 +354,7 @@ uint8_t WorkTask(void)
         }
         else
         {
-          LcdxyPuts(0,0, TestTable[Device.TestIndex].Name);
+          LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
           BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
         }
       }
@@ -321,6 +363,16 @@ uint8_t WorkTask(void)
     case END:
     {               /*01234567890123456789*/
       LcdxyPuts(0,0, "     ELKESZULTEM    ");
+    }
+
+    case SDEV_NOT_SUPPERTED:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+        LcdxyPuts(0,0, "NEM TAMOGATOTT...");
+      }
+      break;
     }
 
     case SDEV_ERROR:
@@ -388,6 +440,13 @@ int main(void)
   Backlight(1);
   SluInit(&hspi2);
   MuxInit(&hspi2);
+  SluCardSoftReset();
+ // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1 );
+
+ // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 64 );
+  //0x14
+  //0x15 0x80
+  //0x1D
   //MMuxTest();
   /* USER CODE END 2 */
 
@@ -478,7 +537,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

@@ -23,12 +23,6 @@
 #define MCP23S08_IOCON_HAEN   0x08    /* Hardware Address Enable bit        */
 
 
-#define MCP48_CONF_B          1<<7
-#define MCP48_CONF_A          0<<7
-#define MCP48_CONF_1x         1<<5
-#define MCP48_CONF_2x         0<<5
-#define MCP48_CONF_SH         0<<4
-#define MCP48_CONF_EN         1<<4
 
 #define SPI_TIMEOUT_MS   100
 
@@ -36,23 +30,13 @@
 /* Private variables ---------------------------------------------------------*/
 static SPI_HandleTypeDef *Spi;
 /* Private function prototypes -----------------------------------------------*/
-//static inline void MMuxMcp23sWrite (uint8_t *data, uint8_t length);
-
 static inline void MMuxMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value);
-
 static inline void IMuxMcp23sWrite(uint8_t mcpaddr, uint8_t reg, uint8_t value);
 
-void MCP4812SetVolt(uint8_t config, double volts);
 void MCP4812Set(uint8_t config, uint16_t value);
-
 void MMuxExSxWrite(uint8_t e, uint8_t s);
 void IMuxExSxWrite(uint8_t se);
-
-uint8_t GetBLevel(void);
-uint8_t GetALevel(void);
-
 uint16_t MCP3201Get(void);
-double MCP3201GetVolt(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -76,30 +60,48 @@ void MuxInit(SPI_HandleTypeDef *spi)
   IMuxExSxWrite(0x30);
 }
 
-uint32_t high = 0;
-uint32_t low = 0;
+uint32_t ALevelHigh = 0;
+uint32_t ALevelLow = 0;
+uint32_t BLevelHigh = 0;
+uint32_t BLevelLow = 0;
 uint16_t adc = 0;
-double volts = 0;
+double Rr = 0;
+double Vout = 0;
 void MMuxTest(void)
 {
 
   BusSetCurrent(BUS_ABUS1);
   MMuxSetRow(1);
-  MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.25);
-  MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 1.75);
-
+  MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
+  MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
   do
   {
 
 //    adc = MCP3201Get();
-    volts = MCP3201GetVolt();
+    Vout = MCP3201GetVolt();
+
+    Rr = GetResistance(Vout);
+
     if(GetALevel())
-      high++;
+      ALevelHigh++;
     else
-      low++;
+      ALevelLow++;
+
+    if(GetBLevel())
+      BLevelHigh++;
+    else
+      BLevelLow++;
 
     DelayMs(500);
   }while(1);
+}
+
+
+double GetResistance(double vout)
+{
+  double vdd=5.0, rh = 200, rm = 80, rl=200, rr=0;
+  rr= (vout*rh + vout*rm + vout * rl - vdd * rm)/(vdd-vout);
+  return rr;
 }
 
 void MCP4812SetVolt(uint8_t config, double volts)
@@ -117,7 +119,9 @@ void MCP4812Set(uint8_t config, uint16_t value)
   HAL_GPIO_WritePin(DAC_CS_GPIO_Port, DAC_CS_Pin, GPIO_PIN_SET);
 }
 
-
+/*
+ * select: 1..64
+ */
 uint8_t MMuxSetRow(uint8_t select)
 {
   uint8_t e=0;
@@ -202,6 +206,9 @@ uint8_t MMuxSetRow(uint8_t select)
   return MUX_OK;
 }
 
+/*
+ * select: 1..64
+ */
 uint8_t MMuxSetAux(uint8_t select)
 {
   uint8_t e=0;
@@ -305,7 +312,9 @@ static inline void MMuxMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value)
   HAL_GPIO_WritePin(MMUX_CS_GPIO_Port, MMUX_CS_Pin, GPIO_PIN_SET);
 }
 
-
+/*
+ * select: 1..24
+ */
 uint8_t IMUXSet(uint8_t select)
 {
   uint8_t se = 0;
