@@ -16,7 +16,9 @@
 typedef struct _SluRelayItem{
   uint8_t Value;
   char RelayName[SLU_RELAY_NAME_SIZE];
-}SluRelayItem;
+}SluRelayItem_t;
+
+
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
@@ -55,8 +57,6 @@ typedef struct _SluRelayItem{
 
 
 
-
-
 /* Exported functions ------------------------------------------------------- */
 
 void SluInit(SPI_HandleTypeDef *spi);
@@ -69,7 +69,7 @@ void SluOpenAllRelays(void);
 
 //void SluBypassRelayOn(uint8_t pbx);
 //void SluBypassRelayOff(uint8_t pbx);
-extern SluRelayItem SLU_U7178A_Loads[];
+extern SluRelayItem_t SLU_U7178A_Loads[];
 
 #endif /* INC_SLU_H_ */
 

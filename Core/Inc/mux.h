@@ -28,11 +28,12 @@
 typedef enum _AnalogBus
 {
   BUS_OFF = 0,
-  BUS_COMM = 1,
-  BUS_ABUS1 = 2,
-  BUS_ABUS2 = 3,
-  BUS_ABUS3 = 4,
-  BUS_ABUS4 = 5
+  BUS_ABUS1 = 1,
+  BUS_ABUS2 = 2,
+  BUS_ABUS3 = 3,
+  BUS_ABUS4 = 4,
+  BUS_COMM = 5
+
 }AnalogBus_t;
 
 

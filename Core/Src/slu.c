@@ -58,7 +58,7 @@ SluCardTypeItem_t SluCardTypes[] =
   {0x32, "Agilent E6198B"},
 };
 
-SluRelayItem SLU_U7178A_Loads[]=
+SluRelayItem_t SLU_U7178A_Loads[]=
 {
   {0x01, "K21-CH1"},
   {0x02, "K22-CH2"},
