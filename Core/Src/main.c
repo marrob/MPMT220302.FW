@@ -32,6 +32,8 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define MEAS_HOLD_TIME_MS   100
+
 
 typedef enum _CtrlStatesTypeDef
 {
@@ -51,10 +53,11 @@ typedef enum _CtrlStatesTypeDef
 typedef struct _AppTypeDef
 {
   uint8_t Address;
-  uint8_t Row;
+  uint8_t StepIndex;
   uint16_t FailCnt;
   uint16_t PassCnt;
-  uint8_t TestIndex;
+  uint16_t Unknown;
+  uint16_t TestIndex;
 
   struct
   {
@@ -68,7 +71,9 @@ typedef struct _AppTypeDef
 
 typedef enum _TestType
 {
-    TEST_ROW_OPEN = 0,
+    TEST_BYPASS_OPEN = 0,
+    TEST_BYPASS_CLOSE,
+    TEST_ROW_OPEN,
     TEST_ROW_CLOSE,
     TEST_AUX_OPEN,
     TEST_AUX_CLOSE
@@ -80,7 +85,7 @@ typedef struct
   char Name[25];
  TestType_t TestType;
   AnalogBus_t AnalogBus;
-  uint8_t MaxRow;
+  uint8_t TotalStep;
   uint32_t FailCounter;
 
 } TestTableItem_t;
@@ -89,16 +94,30 @@ typedef struct
 TestTableItem_t TestTable[] =
 {
   /*01234567890123456789*/
- // {"1. ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
- // {"2. ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
- // {"3. ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
- // {"4. ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
-    {"5. ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
-    {"6. ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
-    {"7. ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
-    {"8. ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
-//  {"9. ABUS1-AUXs OPEN  ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
-//  {"10. ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
+
+
+    {"01.BYPASS PB1", TEST_BYPASS_CLOSE, BUS_ABUS1, 1 },
+    {"02.BYPASS PB2", TEST_BYPASS_CLOSE, BUS_ABUS2, 2 },
+    {"03.BYPASS PB3", TEST_BYPASS_CLOSE, BUS_ABUS3, 3 },
+    {"04.BYPASS PB4", TEST_BYPASS_CLOSE, BUS_ABUS4, 4 },
+    {"05.BYPASS PB1", TEST_BYPASS_OPEN, BUS_ABUS1, 1 },
+    {"06.BYPASS PB2", TEST_BYPASS_OPEN, BUS_ABUS2, 2 },
+    {"07 BYPASS PB3", TEST_BYPASS_OPEN, BUS_ABUS3, 3 },
+    {"08.BYPASS PB4", TEST_BYPASS_OPEN, BUS_ABUS4, 4 },
+
+    {"09.ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
+    {"10.ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
+    {"11.ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
+    {"12.ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
+
+    {"13.ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
+    {"14.ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
+    {"15.ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
+    {"16.ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
+
+    {"17.ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
+    {"18.ABUS1-AUXs OPEN  ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
+
 };
 
 #define TestTableCount (sizeof(TestTable)/sizeof(TestTableItem_t))
@@ -262,91 +281,92 @@ uint8_t WorkTask(void)
                      /*01234567890123456789*/
         LcdxyPuts(0,0,"      E8783A        ");
         Device.TestIndex = 0;
-        Device.Row = 1;
-        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
-        BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+        Device.StepIndex = 1;
         Device.FailCnt = 0;
         Device.PassCnt = 0;
+        Device.Unknown = 0;
+        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
         MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
         MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
       }
-      //Test Rows Step by Step
-      if( Device.Row <= TestTable[Device.TestIndex].MaxRow)
+
+      if(TestTableCount == 0)
       {
+        BusSetCurrent(BUS_OFF);
+        Device.State.Next = END;
+        break;
+      }
 
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+
+      //--- TEST_BYPASS ------------------------------------------------
+      if( TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
+          TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+      {
+        BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+        MMuxSetRow(1);
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
         {
-          MMuxSetRow(Device.Row);
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 64);
         }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS2)
         {
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
-            SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.Row );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
-            SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.Row );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
-            SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.Row );
-
-          MMuxSetRow(Device.Row);
+          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 64);
         }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS3)
         {
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
-          MMuxSetAux(Device.Row);
+          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 64);
         }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS4)
         {
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.Row );
-          MMuxSetAux(Device.Row);
+          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 64);
         }
+      }
 
-        DelayMs(100);
-        memset(String,' ', sizeof(String));
+      if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN)
+      {
+        //Bypass Resistors Off
+        SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0xF0);
+
+        DelayMs(MEAS_HOLD_TIME_MS);
         double volts = MCP3201GetVolt();
         double res = GetResistance(volts);
         if (res > 1000)
-          sprintf(String, "Row:%d R:>1K\xF4 ", Device.Row );
-        if(res < 10)
-          sprintf(String, "Row:%d R:<10\xF4 ", Device.Row );
-        sprintf(String, "Row:%d R:%4.1f\xF4", Device.Row, res );
+          sprintf(String, "R:>1K\xF4 ");
+        else if(res < 10)
+          sprintf(String, "R:<10\xF4 ");
+        else
+          sprintf(String, "R:%3.0f\xF4", res );
         LcdxyPuts(0,2, String);
-        SluOpenAllRelays();
 
+        uint8_t al = GetALevel();
+        uint8_t bl = GetBLevel();
 
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
-        {
-            if(GetBLevel())
-            {
-              /*** 0..225R ***/
-              sprintf(String, "Pass: Row:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.Row, res, volts);
-              Device.PassCnt++;
-            }
-            else
-            { /*** OPEN ***/
-              sprintf(String, "Fail: Row:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.Row, res, volts);
-              Device.FailCnt++;
-            }
-            ConsoleWrite(String);
+        if(al && bl)
+        { //0...25R - Closed
+          sprintf(String, "Fail:?? R:%4.1fOHM, Vout:%4.1fV\r\n", res, volts);
+          Device.FailCnt++;
+        }
+        else if ( !al && bl )
+        { //25R...225 - Open
+          sprintf(String, "Pass: ???, R:%4.1fOHM, Vout:%4.1fV\r\n",res, volts);
+          Device.PassCnt++;
+        }
+        else if(!al && !bl)
+        {//225R... infinite
+          sprintf(String, "Fail: ???, R:%4.1fOHM, Vout:%4.1fV\r\n",res, volts);
+          Device.FailCnt++;
         }
 
-        sprintf(String, "OK:%d, NOK:%d", Device.PassCnt, Device.FailCnt);
-        LcdxyPuts(0,3, String);
-        Device.Row++;
-      }
-      else
-      {
+        ConsoleWrite(String);
+        SluOpenAllRelays();
+
+        //--- TEST END ---
         Device.TestIndex++;
-        Device.Row = 1;
+        Device.StepIndex = 1;
         if( Device.TestIndex > TestTableCount - 1 )
         {
           BusSetCurrent(BUS_OFF);
@@ -358,11 +378,221 @@ uint8_t WorkTask(void)
           BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
         }
       }
+      else if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+      {
+        //Select Bypass Resistors
+        SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 1<<(TestTable[Device.TestIndex].TotalStep - 1));
+
+        DelayMs(MEAS_HOLD_TIME_MS);
+        double volts = MCP3201GetVolt();
+        double res = GetResistance(volts);
+        if (res > 1000)
+          sprintf(String, "R:>1K\xF4 ");
+        else if(res < 10)
+          sprintf(String, "R:<10\xF4 ");
+        else
+          sprintf(String, "R:%3.0f\xF4", res );
+        LcdxyPuts(0,2, String);
+
+        uint8_t al = GetALevel();
+        uint8_t bl = GetBLevel();
+
+        if(al && bl)
+        { //0...25R - Closed
+          Device.PassCnt++;
+        }
+        else if ( !al && bl )
+        { //25R...225 - Open
+          Device.FailCnt++;
+        }
+        else if(!al && !bl)
+        {//225R... infinite
+          Device.FailCnt++;
+        }
+
+        ConsoleWrite(String);
+        SluOpenAllRelays();
+
+        //--- TEST END ---
+        Device.TestIndex++;
+        Device.StepIndex = 1;
+        if( Device.TestIndex > TestTableCount - 1 )
+        {
+          BusSetCurrent(BUS_OFF);
+          Device.State.Next = END;
+        }
+        else
+        {
+          LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
+          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+        }
+      }
+      else
+      {
+        //--- TEST_ROWS ------------------------------------------------
+        if(Device.StepIndex <= TestTable[Device.TestIndex].TotalStep)
+        {
+          if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+          {
+            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+            //Bypasss Relays ON
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x0F);
+            MMuxSetRow(Device.StepIndex);
+          }
+
+          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+          {
+            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+            //Bypasss Relays ON
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x0F);
+            MMuxSetRow(Device.StepIndex);
+
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
+
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
+              SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.StepIndex );
+
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
+              SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.StepIndex );
+
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
+              SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.StepIndex );
+          }
+
+          if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
+          {
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
+            MMuxSetAux(Device.StepIndex);
+          }
+
+          if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
+          {
+            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
+            //ABUS1 Bypass Relay On
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x01);
+            MMuxSetAux(Device.StepIndex);
+
+            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
+            {
+              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex);
+              SluSetRelay(SLU_REG_E8783A_ROW_TO_AUX, Device.StepIndex);
+            }
+          }
+
+          DelayMs(MEAS_HOLD_TIME_MS);
+          double volts = MCP3201GetVolt();
+          double res = GetResistance(volts);
+          if (res > 1000)
+            sprintf(String, "%d R:>1K\xF4 ", Device.StepIndex );
+          else if(res < 10)
+            sprintf(String, "%d R:<10\xF4 ", Device.StepIndex );
+          else
+            sprintf(String, "%d R:%4.1f\xF4", Device.StepIndex, res );
+          LcdxyPuts(0,2, String);
+
+          uint8_t al = GetALevel();
+          uint8_t bl = GetBLevel();
+          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+          {
+            if(al && bl)
+            { //0...25R - Closed
+              Device.PassCnt++;
+            }
+            else if ( !al && bl )
+            { //25R...225 - Closed
+              Device.PassCnt++;
+            }
+            else if(!al && !bl)
+            {//225R... infinite - Open
+              Device.FailCnt++;
+            }
+          }
+          else if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+          {
+            if(al && bl)
+            { //0...25R - Closed
+              Device.FailCnt++;
+            }
+            else if ( !al && bl )
+            { //25R...225 - Closed
+              Device.FailCnt++;
+            }
+            else if(!al && !bl)
+            {//225R... infinite - Open
+              Device.PassCnt++;
+            }
+          }
+
+          else if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
+          {
+            if(al && bl)
+            { //0...25R - Closed
+              sprintf(String, "Pass: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);
+              Device.PassCnt++;
+            }
+            else if ( !al && bl )
+            { //25R...225 - Closed
+              sprintf(String, "Pass: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);
+              Device.PassCnt++;
+            }
+            else if(!al && !bl)
+            {//225R... infinite - Open
+              sprintf(String, "Fail: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);;
+              Device.FailCnt++;
+            }
+          }
+          else if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
+          {
+            if(al && bl)
+            { //0...25R - Closed
+              sprintf(String, "Fail: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);
+              Device.FailCnt++;
+            }
+            else if ( !al && bl )
+            { //25R...225 - Closed
+              sprintf(String, "Fail: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);
+              Device.FailCnt++;
+            }
+            else if(!al && !bl)
+            {//225R... infinite - Open
+              sprintf(String, "Pass: Aux:%d, R:%4.1fOHM, Vout:%4.1fV\r\n", Device.StepIndex, res, volts);;
+              Device.PassCnt++;
+            }
+          }
+
+
+          ConsoleWrite(String);
+          SluOpenAllRelays();
+          Device.StepIndex++;
+        }
+        else
+        {
+          //--- TEST END ---
+          Device.TestIndex++;
+          Device.StepIndex = 1;
+          if( Device.TestIndex > TestTableCount - 1 )
+          {
+            BusSetCurrent(BUS_OFF);
+            Device.State.Next = END;
+          }
+          else
+          {
+            LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
+          }
+        }
+      }
+
+      sprintf(String, "OK:%d, NOK:%d", Device.PassCnt, Device.FailCnt);
+      LcdxyPuts(0,3, String);
+
       break;
     }
     case END:
     {               /*01234567890123456789*/
       LcdxyPuts(0,0, "     ELKESZULTEM    ");
+      break;
     }
 
     case SDEV_NOT_SUPPERTED:

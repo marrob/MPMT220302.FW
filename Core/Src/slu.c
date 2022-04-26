@@ -184,6 +184,18 @@ void SluOpenAllRelays(void)
 {
   SluWriteReg(SLU_REG_STAT_CONT, 0x20);
 }
+/*
+ * pbx: PB1:1, PB2:2, PB3:3, B4:4
+ */
+//void SluBypassRelayOn(uint8_t pbx)
+//{
+//  SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 1 << (pbx-1));
+//}
+//
+//void SluBypassRelayOff(uint8_t pbx)
+//{
+//  SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 1 << ((pbx-1) + 4));
+//}
 
 uint8_t SluGetModelName(char *name, uint8_t value)
 {

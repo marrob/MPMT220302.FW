@@ -33,6 +33,9 @@ typedef struct _SluRelayItem{
 #define SLU_REG_U7178A_CURRENT_SENSE    0x03
 #define SLU_REG_U7178A_LOAD             0x04
 
+/*E8783A E8782A*/
+#define SLU_REG_E8783A_E8782A_BYPAS     0x04
+
 #define SLU_REG_E8783A_ROW_TO_AUX       0x06
 #define SLU_REG_E8783A_ABUS1_TO_ROW     0x0E
 #define SLU_REG_E8783A_ABUS2_TO_ROW     0x16
@@ -63,6 +66,9 @@ uint8_t SluSetRelay(uint8_t base, uint8_t relay);
 uint8_t SluGetModelName(char *name, uint8_t value);
 void SluCardSoftReset(void);
 void SluOpenAllRelays(void);
+
+//void SluBypassRelayOn(uint8_t pbx);
+//void SluBypassRelayOff(uint8_t pbx);
 extern SluRelayItem SLU_U7178A_Loads[];
 
 #endif /* INC_SLU_H_ */
