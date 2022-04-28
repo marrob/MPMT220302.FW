@@ -32,7 +32,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define MEAS_HOLD_TIME_MS   10
+#define MEAS_HOLD_TIME_MS   5
 
 
 typedef enum _CtrlStatesTypeDef
@@ -43,12 +43,18 @@ typedef enum _CtrlStatesTypeDef
   SDEV_WAIT_FOR_CARD,           //3
   SDEV_WROK_U7178A,
   SDEV_WORK_E8783A,
-  SDEV_ERROR,
+  SDEV_FAIL_DETAIL,
   SDEV_NO_CARD,
   SDEV_NOT_SUPPERTED,
   END,
 
 }CtrlStatesTypeDef;
+
+typedef enum _TestMode
+{
+  TST_MODE_FULL,
+  TST_MODE_HOLD_FAIL
+}TestMode_t;
 
 typedef struct _AppTypeDef
 {
@@ -58,7 +64,10 @@ typedef struct _AppTypeDef
   uint16_t PassCnt;
   uint16_t Unknown;
   uint16_t TestIndex;
-
+  char CardNameStr[20];
+  char ResultLine[20];
+  TestMode_t Mode;
+  uint8_t FailAcceptFlag;
   struct
   {
     CtrlStatesTypeDef Next;
@@ -95,14 +104,14 @@ typedef struct
 TestTableItem_t TestTable[] =
 {
     /*01234567890123456789*/
-    {"01.DISC AB1 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS1, 0 },
-    {"02.DISC AB2 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS2, 0 },
-    {"03.DISC AB3 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS3, 0 },
-    {"04.DISC AB4 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS4, 0 },
-    {"05.DISC AB1 OPEN ", TEST_DISCON_OPEN, BUS_ABUS1, 0 },
-    {"06.DISC AB2 OPEN ", TEST_DISCON_OPEN, BUS_ABUS2, 0 },
-    {"07 DISC AB3 OPEN ", TEST_DISCON_OPEN, BUS_ABUS3, 0 },
-    {"08.DISC AB4 OPEN ", TEST_DISCON_OPEN, BUS_ABUS4, 0 },
+//    {"01.DISC AB1 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS1, 0 },
+//   {"02.DISC AB2 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS2, 0 },
+//    {"03.DISC AB3 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS3, 0 },
+//    {"04.DISC AB4 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS4, 0 },
+//    {"05.DISC AB1 OPEN ", TEST_DISCON_OPEN, BUS_ABUS1, 0 },
+//    {"06.DISC AB2 OPEN ", TEST_DISCON_OPEN, BUS_ABUS2, 0 },
+//    {"07 DISC AB3 OPEN ", TEST_DISCON_OPEN, BUS_ABUS3, 0 },
+//    {"08.DISC AB4 OPEN ", TEST_DISCON_OPEN, BUS_ABUS4, 0 },
 
     {"09.BYPASS PB1 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS1, 0 },
     {"10.BYPASS PB2 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS2, 0 },
@@ -169,7 +178,9 @@ void Backlight(uint8_t state);
 
 uint8_t WorkTask(void);
 
+uint8_t GetBtnGreen(void);
 uint8_t GetBtnRed(void);
+uint8_t GetBtnOrange(void);
 
 void ConsoleWrite(char *str);
 
@@ -181,6 +192,8 @@ void ConsoleWrite(char *str);
 uint8_t WorkTask(void)
 {
   static uint32_t timestamp = 0;
+  static uint8_t isBtnOrangeReleased = 0;
+  static uint8_t isBtnGreenReleased = 0;
   switch(Device.State.Curr)
   {
     case SDEV_START:
@@ -198,7 +211,7 @@ uint8_t WorkTask(void)
 
     case SDEV_WAIT:
     {
-      if((HAL_GetTick() - timestamp) > 1000 )
+      if((HAL_GetTick() - timestamp) > 2000 )
       {
         Device.State.Next = SDEV_WAIT_FOR_CARD;
       }
@@ -222,10 +235,23 @@ uint8_t WorkTask(void)
         if(SluGetModelName(String, card)== SLU_OK)
         {
             LcdxyPuts(0,1,String);
+            strcpy(Device.CardNameStr, String);
             if(card == 0x19)
+            {
               Device.State.Next = SDEV_WROK_U7178A;
+            }
+
             if(card == 0x47)
+            {
+              Device.TestIndex = 0;
+              Device.StepIndex = 1;
+              Device.FailCnt = 0;
+              Device.PassCnt = 0;
+              Device.Unknown = 0;
+              MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
+              MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
               Device.State.Next = SDEV_WORK_E8783A;
+            }
             else
               Device.State.Next = SDEV_NOT_SUPPERTED;
         }
@@ -248,13 +274,14 @@ uint8_t WorkTask(void)
       {
                        /*01234567890123456789*/
           LcdxyPuts(0,1,"    Nincs kartya.   ");
-          LcdxyPuts(0,3,"PIROS:Ismet");
+
+          LcdxyPuts(0,3, "ZD>--- PR>--- SG>UJ");
       }
-        if(GetBtnRed())
-        {
-          LcdClrscr();
-          Device.State.Next = SDEV_WAIT_FOR_CARD;
-        }
+      if(GetBtnOrange())
+      {
+        LcdClrscr();
+        Device.State.Next = SDEV_WAIT_FOR_CARD;
+      }
       break;
     }
 
@@ -287,16 +314,8 @@ uint8_t WorkTask(void)
       if(Device.State.Pre != Device.State.Curr)
       {
         LcdClrscr();
-                     /*01234567890123456789*/
         LcdxyPuts(0,0,"      E8783A        ");
-        Device.TestIndex = 0;
-        Device.StepIndex = 1;
-        Device.FailCnt = 0;
-        Device.PassCnt = 0;
-        Device.Unknown = 0;
         LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
-        MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
-        MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
       }
 
       if(TestTableCount == 0)
@@ -306,9 +325,7 @@ uint8_t WorkTask(void)
         break;
       }
 
-      //--- TEST_DISCONNECT---------------------------------------------
-
-      //--- TEST_BYPASS ------------------------------------------------
+      //--- TEST BYPASS & DISCONNECT relays-------------------------------------
       if( TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
           TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE ||
           TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN ||
@@ -324,7 +341,7 @@ uint8_t WorkTask(void)
 
         if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
         {
-          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
+          //SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
 
           //Bypass Relay On
           if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
@@ -351,6 +368,7 @@ uint8_t WorkTask(void)
         if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS3)
         {
           SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
+
           //Bypass Relay On
           if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
             SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04);
@@ -456,20 +474,32 @@ uint8_t WorkTask(void)
           }
         }
 
-        //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
+        //--- K901 R:200Ω OK or K901 R:200Ω NOK ---
         if(isPassed)
         {
-          Device.PassCnt++;
-          sprintf(String, "%s %s OK ", rlystr, resstr);
+          sprintf(Device.ResultLine, "%s %s OK ", rlystr, resstr);
         }
         else
         {
-          Device.FailCnt++;
-          sprintf(String, "%s %s NOK ", rlystr, resstr);
+          sprintf(Device.ResultLine, "%s %s NOK ", rlystr, resstr);
+          if(Device.Mode == TST_MODE_HOLD_FAIL && !Device.FailAcceptFlag)
+          {
+            Device.State.Next = SDEV_FAIL_DETAIL;
+            break;
+          }
         }
-        LcdxyPuts(0, 2, String);
-        ConsoleWrite(String);
+
+        if(isPassed)
+          Device.PassCnt++;
+        else
+          Device.FailCnt++;
+
+        LcdxyPuts(0, 2, Device.ResultLine);
+        //ConsoleWrite(String);
         SluOpenAllRelays();
+        Device.FailAcceptFlag = 0;
+
+
 
         //--- TEST END ---
         Device.TestIndex++;
@@ -639,26 +669,68 @@ uint8_t WorkTask(void)
 
       sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
       LcdxyPuts(0,3, String);
-
       break;
     }
-    case END:
+
+    case SDEV_FAIL_DETAIL:
     {
 
+      //01234567890123456789
+      //   HIBA RESZLETEI
+      //01.DISC AB1 CLOSE
+      //K901 R:200Ω OK
+      //ZD>ISM PR>--- SG>KOV
       if(Device.State.Pre != Device.State.Curr)
       {
         LcdClrscr();
-                        /*01234567890123456789*/
-        LcdxyPuts(0,0, "     ELKESZULTEM    ");
-        sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
-        LcdxyPuts(0,1, String);
+        LcdxyPuts(0,0, "   HIBA RESZLETEI   ");
+        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
+        LcdxyPuts(0,2, Device.ResultLine);
+        LcdxyPuts(0,3, "ZD>ISM PR>--- SG>KOV");
+      }
+      if(GetBtnGreen() && isBtnGreenReleased)
+      {
+        LcdClrscr();
+        Device.State.Next = SDEV_WORK_E8783A;
+        isBtnGreenReleased = 0;
+      }
 
+      if(GetBtnOrange() && isBtnOrangeReleased)
+      {
+        LcdClrscr();
+        Device.FailAcceptFlag = 1;
+        Device.State.Next = SDEV_WORK_E8783A;
+        isBtnOrangeReleased = 0;
+      }
+      break;
+    }
+
+    case END:
+    {
+      //01234567890123456789
+      //E8783A TESZT VEGE
+      //  >>> FAILED <<<
+      //OK:640 NOK:16
+      //ZD>--- PR>--- SG>UJ"
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+        sprintf(String,"%s TESZT VEGE", Device.CardNameStr);
+        LcdxyPuts(0,0, String);
         if(Device.FailCnt == 0)
-                        /*01234567890123456789*/
-          LcdxyPuts(0,0, "      PASSSED       ");
+          LcdxyPuts(0,1, "  >>> PASSSED <<<   ");
         else
-                        /*01234567890123456789*/
-          LcdxyPuts(0,0, "      FAILED        ");
+          LcdxyPuts(0,1, "  >>> FAILED <<<    ");
+        sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
+        LcdxyPuts(0,2, String);
+        LcdxyPuts(0,3, "ZD>--- PR>--- SG>UJ");
+      }
+
+      if(GetBtnOrange() && isBtnOrangeReleased)
+      {
+        LcdClrscr();
+        Device.State.Next = SDEV_WAIT_FOR_CARD;
+        isBtnOrangeReleased = 0;
       }
       break;
     }
@@ -669,15 +741,25 @@ uint8_t WorkTask(void)
       {
         LcdClrscr();
         LcdxyPuts(0,0, "NEM TAMOGATOTT...");
+        //---MENU---
+        //01234567890123456789
+        LcdxyPuts(0,3, "ZD>--- PR>--- SG>UJ");
+      }
+
+      if(GetBtnOrange())
+      {
+        LcdClrscr();
+        Device.State.Next = SDEV_WAIT_FOR_CARD;
       }
       break;
     }
-
-    case SDEV_ERROR:
-    {
-      break;
-    }
   }
+
+  if(!GetBtnGreen())
+    isBtnGreenReleased = 1;
+
+  if(!GetBtnOrange())
+    isBtnOrangeReleased = 1;
 
   Device.State.Pre = Device.State.Curr;
   Device.State.Curr = Device.State.Next;
@@ -746,6 +828,7 @@ int main(void)
   SluInit(&hspi2);
   MuxInit(&hspi2);
   SluCardSoftReset();
+  Device.Mode = TST_MODE_HOLD_FAIL;
 
 
  // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1 );
@@ -1030,9 +1113,22 @@ void LiveLedOff(void)
 }
 uint8_t red = 0;
 
+/* Buttons--------------------------------------------------------------------*/
+uint8_t GetBtnGreen(void)
+{
+  red = HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin);
+  return  red == GPIO_PIN_RESET;
+}
+
 uint8_t GetBtnRed(void)
 {
   red = HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin);
+  return  red == GPIO_PIN_RESET;
+}
+
+uint8_t GetBtnOrange(void)
+{
+  red = HAL_GPIO_ReadPin(BTN3_GPIO_Port, BTN3_Pin);
   return  red == GPIO_PIN_RESET;
 }
 

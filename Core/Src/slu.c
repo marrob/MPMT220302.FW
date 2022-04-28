@@ -40,22 +40,22 @@ typedef struct _SluCardTypeItem
 
 SluCardTypeItem_t SluCardTypes[] =
 {
-  {0x01, "Agilent E6175A"},
-  {0x02, "Agilent E6176A"},
-  {0x03, "Agilent E6177A"},
-  {0x18, "Agilent E7177A"},
-  {0x19, "Agilent E7178A"},
-  {0x20, "Agilent E7179A"},
-  {0x04, "Agilent E6178B"},
-  {0x05, "Agilent N9378A"},
-  {0x06, "Agilent N9379A"},
-  {0x07, "Agilent N9377A"},
-  {0x0A, "Agilent E8792A"},
-  {0x0B, "Agilent E8793A"},
-  {0x43, "Agilent E8782A"},
-  {0x47, "Agilent E8783A"},
-  {0x14, "Agilent E8794A"},
-  {0x32, "Agilent E6198B"},
+  {0x01, "E6175A"},
+  {0x02, "E6176A"},
+  {0x03, "E6177A"},
+  {0x18, "E7177A"},
+  {0x19, "E7178A"},
+  {0x20, "E7179A"},
+  {0x04, "E6178B"},
+  {0x05, "N9378A"},
+  {0x06, "N9379A"},
+  {0x07, "N9377A"},
+  {0x0A, "E8792A"},
+  {0x0B, "E8793A"},
+  {0x43, "E8782A"},
+  {0x47, "E8783A"},
+  {0x14, "E8794A"},
+  {0x32, "E6198B"},
 };
 
 SluRelayItem_t SLU_U7178A_Loads[]=
