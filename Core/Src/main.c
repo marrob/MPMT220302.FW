@@ -32,7 +32,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define MEAS_HOLD_TIME_MS   1000
+#define MEAS_HOLD_TIME_MS   10
 
 
 typedef enum _CtrlStatesTypeDef
@@ -71,12 +71,14 @@ typedef struct _AppTypeDef
 
 typedef enum _TestType
 {
-    TEST_BYPASS_OPEN = 0,
-    TEST_BYPASS_CLOSE,
-    TEST_ROW_OPEN,
-    TEST_ROW_CLOSE,
-    TEST_AUX_OPEN,
-    TEST_AUX_CLOSE
+  TEST_DISCON_OPEN = 0,
+  TEST_DISCON_CLOSE,
+  TEST_BYPASS_OPEN,
+  TEST_BYPASS_CLOSE,
+  TEST_ROW_OPEN,
+  TEST_ROW_CLOSE,
+  TEST_AUX_OPEN,
+  TEST_AUX_CLOSE
 
 }TestType_t;
 
@@ -93,27 +95,36 @@ typedef struct
 TestTableItem_t TestTable[] =
 {
     /*01234567890123456789*/
-    {"01.BYPASS PB1 CLOSE", TEST_BYPASS_CLOSE, BUS_ABUS1, 1 },
-    {"02.BYPASS PB2 CLOSE", TEST_BYPASS_CLOSE, BUS_ABUS2, 2 },
-    {"03.BYPASS PB3 CLOSE", TEST_BYPASS_CLOSE, BUS_ABUS3, 3 },
-    {"04.BYPASS PB4 CLOSE", TEST_BYPASS_CLOSE, BUS_ABUS4, 4 },
-    {"05.BYPASS PB1 OPEN", TEST_BYPASS_OPEN, BUS_ABUS1, 1 },
-    {"06.BYPASS PB2 OPEN", TEST_BYPASS_OPEN, BUS_ABUS2, 2 },
-    {"07 BYPASS PB3 OPEN", TEST_BYPASS_OPEN, BUS_ABUS3, 3 },
-    {"08.BYPASS PB4 OPEN", TEST_BYPASS_OPEN, BUS_ABUS4, 4 },
+    {"01.DISC AB1 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS1, 0 },
+    {"02.DISC AB2 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS2, 0 },
+    {"03.DISC AB3 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS3, 0 },
+    {"04.DISC AB4 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS4, 0 },
+    {"05.DISC AB1 OPEN ", TEST_DISCON_OPEN, BUS_ABUS1, 0 },
+    {"06.DISC AB2 OPEN ", TEST_DISCON_OPEN, BUS_ABUS2, 0 },
+    {"07 DISC AB3 OPEN ", TEST_DISCON_OPEN, BUS_ABUS3, 0 },
+    {"08.DISC AB4 OPEN ", TEST_DISCON_OPEN, BUS_ABUS4, 0 },
 
-    {"09.ABUS1-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
-    {"10.ABUS2-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
-    {"11.ABUS3-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
-    {"12.ABUS4-ROWs OPEN  ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
+    {"09.BYPASS PB1 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS1, 0 },
+    {"10.BYPASS PB2 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS2, 0 },
+    {"11.BYPASS PB3 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS3, 0 },
+    {"12.BYPASS PB4 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS4, 0 },
+    {"13.BYPASS PB1 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS1, 0 },
+    {"14.BYPASS PB2 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS2, 0 },
+    {"15 BYPASS PB3 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS3, 0 },
+    {"16.BYPASS PB4 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS4, 0 },
 
-    {"13.ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
-    {"14.ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
-    {"15.ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
-    {"16.ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
+    {"17.ABUS1-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
+    {"18.ABUS2-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
+    {"19.ABUS3-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
+    {"20.ABUS4-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
 
-    {"17.ABUS1-AUXs CLOSE", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
-    {"18.ABUS1-AUXs OPEN", TEST_AUX_OPEN, BUS_ABUS1, 64 },
+    {"21.ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
+    {"22.ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
+    {"23.ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
+    {"24.ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
+
+    {"25.ABUS1-AUXs CLOSE ", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
+    {"26.ABUS1-AUXs OPEN ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
 
 };
 
@@ -199,6 +210,7 @@ uint8_t WorkTask(void)
       static uint8_t cardTryCnt;
       if(Device.State.Pre != Device.State.Curr)
       {
+          LcdClrscr();
                         /*01234567890123456789*/
           LcdxyPuts(0,0," KARTYA AZONOSITASA ");
           timestamp = HAL_GetTick();
@@ -294,31 +306,71 @@ uint8_t WorkTask(void)
         break;
       }
 
+      //--- TEST_DISCONNECT---------------------------------------------
+
       //--- TEST_BYPASS ------------------------------------------------
       if( TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
-          TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+          TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE ||
+          TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN ||
+          TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE
+      )
       {
         BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
         MMuxSetRow(1);
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
-          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
 
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS2)
-          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 1);
-
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS3)
-          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
-
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS4)
-          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 1);
-
-        //Bypass Resistors Off
+        //All Bypass Relay Off
         if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN)
           SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x00);
 
-        //Select a Bypass Resistors
-        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-          SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 1<<(TestTable[Device.TestIndex].IntParm - 1));
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
+        {
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
+
+          //Bypass Relay On
+          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x01);
+
+          //One Disconn Relay Off There is negative logic!
+          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x10);
+        }
+
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS2)
+        {
+          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 1);
+
+          //Bypass Relay On
+          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x02);
+
+          //One Disconn Relay Off There is negative logic!
+          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x20);
+        }
+
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS3)
+        {
+          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
+          //Bypass Relay On
+          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04);
+
+          //One Disconn Relay Off There is negative logic!
+          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x40);
+        }
+        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS4)
+        {
+          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 1);
+
+          //Bypass Relay On
+          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x08);
+
+          //One Disconn Relay Off There is negative logic!
+          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x80);
+        }
 
         DelayMs(MEAS_HOLD_TIME_MS);
         double volts = MCP3201GetVolt();
@@ -337,9 +389,9 @@ uint8_t WorkTask(void)
 
         if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN)
         {
-          if(al && bl)//0...25R - Closed
+          if(al && bl)//0...25R
             isPassed = 0;
-          else if ( !al && bl )//25R...225 - Open
+          else if ( !al && bl )//25R...225
             isPassed = 1;
           else if(!al && !bl)//225R... infinite
             isPassed = 0;
@@ -347,35 +399,73 @@ uint8_t WorkTask(void)
 
         if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
         {
-          if(al && bl)//0...25R - Closed
+          if(al && bl)//0...25R
             isPassed = 1;
-          else if ( !al && bl )//25R...225 - Open
+          else if ( !al && bl )//25R...225
             isPassed = 0;
           else if(!al && !bl)//225R... infinite
             isPassed = 0;
         }
 
-        char rlystr[3];
-        switch(TestTable[Device.TestIndex].AnalogBus)
+        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
         {
-          case BUS_ABUS1: strcpy(rlystr,"K1"); break;
-          case BUS_ABUS2: strcpy(rlystr,"K3"); break;
-          case BUS_ABUS3: strcpy(rlystr,"K5"); break;
-          case BUS_ABUS4: strcpy(rlystr,"K7"); break;
-          case BUS_COMM: strcpy(rlystr,"?"); break;
-          case BUS_OFF: strcpy(rlystr,"?"); break;
+          if(al && bl)//0...25R
+            isPassed = 0;
+          else if ( !al && bl )//25R...225
+            isPassed = 0;
+          else if(!al && !bl)//225R... infinite
+            isPassed = 1;
         }
+
+        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE)
+        {
+          if(al && bl)//0...25R
+            isPassed = 1;
+          else if ( !al && bl )//25R...225
+            isPassed = 1;
+          else if(!al && !bl)//225R... infinite
+            isPassed = 0;
+        }
+
+        char rlystr[3];
+        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
+            TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
+        {
+          switch(TestTable[Device.TestIndex].AnalogBus)
+          {
+            case BUS_ABUS1: strcpy(rlystr,"K1"); break;
+            case BUS_ABUS2: strcpy(rlystr,"K3"); break;
+            case BUS_ABUS3: strcpy(rlystr,"K5"); break;
+            case BUS_ABUS4: strcpy(rlystr,"K7"); break;
+            case BUS_COMM: strcpy(rlystr,"?"); break;
+            case BUS_OFF: strcpy(rlystr,"?"); break;
+          }
+        }
+
+        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN ||
+            TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE)
+        {
+          switch(TestTable[Device.TestIndex].AnalogBus)
+          {
+            case BUS_ABUS1: strcpy(rlystr,"K2"); break;
+            case BUS_ABUS2: strcpy(rlystr,"K4"); break;
+            case BUS_ABUS3: strcpy(rlystr,"K6"); break;
+            case BUS_ABUS4: strcpy(rlystr,"K8"); break;
+            case BUS_COMM: strcpy(rlystr,"?"); break;
+            case BUS_OFF: strcpy(rlystr,"?"); break;
+          }
+        }
+
+        //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
         if(isPassed)
         {
-          //K901 OK R:200Ω
           Device.PassCnt++;
-          sprintf(String, "%s OK %s ", rlystr, resstr);
+          sprintf(String, "%s %s OK ", rlystr, resstr);
         }
         else
         {
-          //K901 NOK R:200Ω
           Device.FailCnt++;
-          sprintf(String, "%s NOK %s ", rlystr, resstr);
+          sprintf(String, "%s %s NOK ", rlystr, resstr);
         }
         LcdxyPuts(0, 2, String);
         ConsoleWrite(String);
@@ -460,70 +550,68 @@ uint8_t WorkTask(void)
 
           if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
           {
-            if(al && bl) //0...25R - Closed
+            if(al && bl) //0...25R
               isPassed = 1;
-            else if ( !al && bl ) //25R...225 - Closed
+            else if ( !al && bl ) //25R...225
               isPassed = 1;
-            else if(!al && !bl)//225R... infinite - Open
+            else if(!al && !bl)//225R... infinite
               isPassed = 0;
           }
           else if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
           {
-            if(al && bl) //0...25R - Closed
+            if(al && bl) //0...25R
               isPassed = 0;
-            else if (!al && bl)//25R...225 - Closed
+            else if (!al && bl)//25R...225
               isPassed = 0;
-            else if(!al && !bl)//225R... infinite - Open
+            else if(!al && !bl)//225R... infinite
               isPassed = 1;
           }
           else if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
           {
-            if(al && bl)//0...25R - Closed
+            if(al && bl)//0...25R
               isPassed = 1;
-            else if ( !al && bl)//25R...225 - Closed
+            else if ( !al && bl)//25R...225
               isPassed = 1;
-            else if(!al && !bl)//225R... infinite - Open
+            else if(!al && !bl)//225R... infinite
               isPassed = 0;
           }
           else if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
           {
-            if(al && bl)//0...25R - Closed
+            if(al && bl)//0...25R
               isPassed = 0;
-            else if (!al && bl)//25R...225 - Closed
+            else if (!al && bl)//25R...225
               isPassed = 0;
-            else if(!al && !bl)//225R... infinite - Open
+            else if(!al && !bl)//225R... infinite
               isPassed = 1;
+          }
+          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE ||
+             TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+          {
+            if(isPassed)
+            {
+              Device.PassCnt++;
+              sprintf(String, "K%d%02d %s OK ", BUS_ABUS1, Device.StepIndex, resstr);
+            }
+            else
+            {
+              Device.FailCnt++;
+              sprintf(String, "K%d%02d %s NOK ", BUS_ABUS1, Device.StepIndex, resstr);
+            }
           }
 
           if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE ||
              TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
           {
+            //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
             if(isPassed)
             {
-              //K901 OK R:200Ω
               Device.PassCnt++;
-              sprintf(String, "K%d%02d OK %s ", 9, Device.StepIndex, resstr);
+              sprintf(String, "K%d%02d %s OK ", 9, Device.StepIndex, resstr);
             }
             else
             {
-              //K901 NOK R:200Ω
               Device.FailCnt++;
-              sprintf(String, "K%d%02d NOK %s ", 9, Device.StepIndex, resstr);
-            }
-          }
-          else
-          {
-            if(isPassed)
-            {
-              //K101 OK R:200Ω
-              Device.PassCnt++;
-              sprintf(String, "K%d%02d OK %s ", BUS_ABUS1, Device.StepIndex, resstr);
-            }
-            else
-            {
-              //K101 NOK R:200Ω
-              Device.FailCnt++;
-              sprintf(String, "K%d%02d NOK %s ", BUS_ABUS1, Device.StepIndex, resstr);
+              sprintf(String, "K%d%02d %s NOK ", 9, Device.StepIndex, resstr);
             }
           }
           LcdxyPuts(0, 2, String);
@@ -555,10 +643,23 @@ uint8_t WorkTask(void)
       break;
     }
     case END:
-    {               /*01234567890123456789*/
-      LcdxyPuts(0,0, "     ELKESZULTEM    ");
+    {
 
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+                        /*01234567890123456789*/
+        LcdxyPuts(0,0, "     ELKESZULTEM    ");
+        sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
+        LcdxyPuts(0,1, String);
 
+        if(Device.FailCnt == 0)
+                        /*01234567890123456789*/
+          LcdxyPuts(0,0, "      PASSSED       ");
+        else
+                        /*01234567890123456789*/
+          LcdxyPuts(0,0, "      FAILED        ");
+      }
       break;
     }
 
@@ -618,26 +719,35 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  /*** Reset Everyting ***/
+  //*** Reset Everyting ***
   HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
   DelayMs(100);
   HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
   DelayMs(5);
 
-  /*** LiveLed ***/
+  //*** LiveLed ***
   hLiveLed.LedOffFnPtr = &LiveLedOff;
   hLiveLed.LedOnFnPtr = &LiveLedOn;
   hLiveLed.HalfPeriodTimeMs = 500;
   LiveLedInit(&hLiveLed);
 
-  /*** LCD ***/
+  //*** LCD ***
   LcdInit(LCD_FUNC_4B_2L, LCD_MODE_DISP, LCD_MODE_DISP);
-         /*01234567890123456789*/
-  LcdPuts("     Hello World    ");
+               /*01234567890123456789*/
+  LcdxyPuts(0, 0,"  PIN MATRIX TESTER ");
+  sprintf(String, "%sV%s", DEVICE_NAME, DEVICE_PCB);
+  LcdxyPuts(0, 1,String);//MPMT220302V00
+  sprintf(String,"FW:%s", DEVICE_FW);
+  LcdxyPuts(0, 2, String);//220428_1004
+  sprintf(String,"%s", DEVICE_MNF);
+  LcdxyPuts(0, 3, String);
+
   Backlight(1);
   SluInit(&hspi2);
   MuxInit(&hspi2);
   SluCardSoftReset();
+
+
  // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1 );
 
  // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 64 );
@@ -645,6 +755,8 @@ int main(void)
   //0x15 0x80
   //0x1D
   //MMuxTest();
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
