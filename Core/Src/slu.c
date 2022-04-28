@@ -17,6 +17,7 @@
 /* Private define ------------------------------------------------------------*/
 #define MCP23S08_IODIRA       0x00    /* IODIR – I/O DIRECTION REGISTER     */
 #define MCP23S08_IOCONA       0x05    /* EXPANDER CONFIGURATION REGISTER    */
+#define MCP23S08_GPPU         0x06    /* PULL UP RESISTORS                  */
 #define MCP23S08_OLATA        0x0A    /* OUTPUT LATCH REGISTER              */
 #define MCP23S08_GPIOA        0x09    /* GENERAL PURPOSE I/O PORT REGISTER  */
 #define MCP23S08_IOCON_HAEN   0x08    /* Hardware Address Enable bit        */
@@ -145,6 +146,8 @@ uint8_t SluReadReg(uint8_t address)
   SluMcp23sWrite(0x00, MCP23S08_OLATA, address);
   //data-IO expander direction -> input
   SluMcp23sWrite(0x01, MCP23S08_IODIRA, 0xFF);
+  //data-IO expander Pull Up Resistors Enable
+  SluMcp23sWrite(0x01, MCP23S08_GPPU, 0xFF);
   //*** Read From SLU ***
   HAL_GPIO_WritePin(SLU_RW_GPIO_Port, SLU_RW_Pin, GPIO_PIN_SET);
   //*** Make Strobe ON ***
