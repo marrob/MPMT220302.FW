@@ -44,6 +44,11 @@ typedef enum _CtrlStatesTypeDef
   SDEV_TST_MODE_SELECT,
   SDEV_WROK_U7178A,
   SDEV_WORK_E8783A,
+
+  SDEV_BYPASS,
+  SDEV_ROWS,
+  SDEV_INST,
+
   SDEV_FAIL_DETAIL,
   SDEV_NO_CARD,
   SDEV_NOT_SUPPERTED,
@@ -57,19 +62,30 @@ typedef enum _TestMode
   UUT_MODE_DEBUG
 }UutMode_t;
 
+typedef enum _TestType2
+{
+  TEST_TYPE_OPEN = 0,
+  TEST_TYPE_CLOSE,
+}TestType2_t;
+
 typedef struct _AppTypeDef
 {
   uint8_t Address;
   uint8_t StepIndex;
   uint16_t FailCnt;
   uint16_t PassCnt;
-  uint16_t Unknown;
   uint16_t TestIndex;
+  uint8_t RowsStart;
+  uint8_t RowsEnd;
   char UutCardName[20];
   char ResultLine[20];
   UutMode_t UutMode;
   uint8_t FailAcceptFlag;
   CtrlStatesTypeDef Uut;
+
+
+  TestType2_t CurrentTestType;
+  AnalogBus_t CurrentAnalogBus;
 
   struct
   {
@@ -93,6 +109,7 @@ typedef enum _TestType
   TEST_AUX_CLOSE
 
 }TestType_t;
+
 
 typedef struct
 {
@@ -214,7 +231,7 @@ uint8_t WorkTask(void)
 
     case SDEV_WAIT:
     {
-      if((HAL_GetTick() - timestamp) > 2000 )
+      if((HAL_GetTick() - timestamp) > 500 )
       {
         Device.State.Next = SDEV_WAIT_FOR_CARD;
       }
@@ -238,6 +255,13 @@ uint8_t WorkTask(void)
       if(HAL_GetTick() - timestamp > 1000)
       {
         uint8_t card = SluReadReg(SLU_REG_CARD_TYPE);
+        Device.TestIndex = 0;
+        Device.StepIndex = 1;
+        Device.FailCnt = 0;
+        Device.PassCnt = 0;
+        MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
+        MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
+
         if(SluGetModelName(String, card) == SLU_OK)
         {
             LcdxyPuts(0,1,String);
@@ -246,16 +270,20 @@ uint8_t WorkTask(void)
             {
               Device.State.Next = SDEV_WROK_U7178A;
             }
-
             if(card == 0x47)
             {
-              Device.TestIndex = 0;
-              Device.StepIndex = 1;
-              Device.FailCnt = 0;
-              Device.PassCnt = 0;
-              Device.Unknown = 0;
-              MCP4812SetVolt(MCP48_CONF_A | MCP48_CONF_EN | MCP48_CONF_2x, 1.18);
-              MCP4812SetVolt(MCP48_CONF_B | MCP48_CONF_EN | MCP48_CONF_2x, 2.23);
+              Device.RowsStart = 1;
+              Device.RowsEnd = 64;
+              Device.CurrentAnalogBus = BUS_ABUS1;
+              Device.CurrentTestType = TEST_TYPE_OPEN;
+              Device.State.Next = SDEV_TST_MODE_SELECT;
+            }
+            if(card == 0x43)
+            {
+              Device.RowsStart = 1;
+              Device.RowsEnd = 40;
+              Device.CurrentAnalogBus = BUS_ABUS1;
+              Device.CurrentTestType = TEST_TYPE_OPEN;
               Device.State.Next = SDEV_TST_MODE_SELECT;
             }
             else
@@ -735,6 +763,19 @@ uint8_t WorkTask(void)
         Device.State.Next = SDEV_WORK_E8783A;
         isBtnOrangeReleased = 0;
       }
+      break;
+    }
+
+    case SDEV_BYPASS:
+    {
+      break;
+    }
+    case SDEV_ROWS:
+    {
+      break;
+    }
+    case SDEV_INST:
+    {
       break;
     }
 
