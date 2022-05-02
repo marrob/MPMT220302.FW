@@ -364,7 +364,7 @@ uint8_t WorkTask(void)
 
         if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
         {
-          //SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
 
           //Bypass Relay On
           if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)

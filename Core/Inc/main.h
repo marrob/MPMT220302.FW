@@ -160,7 +160,7 @@ void Error_Handler(void);
 
 #define DEVICE_NAME             "MPMT220302"    /*!< Eszkoz neve pl.:MDIO130204*/
 #define DEVICE_NAME_SIZE        sizeof(DEVICE_NAME)
-#define DEVICE_FW               "220428_1004"   /*!< Eszkoz Firmware verzioszama pl.:"220428_1004"*/
+#define DEVICE_FW               "220430_1217"   /*!< Eszkoz Firmware verzioszama pl.:"220428_1004"*/
 #define DEVICE_FW_SIZE          sizeof(DEVICE_FW)
 #define DEVICE_PCB              "00"            /*!< Eszkoz PCB verzioszama pl.:"A0"*/
 #define DEVICE_PCB_SIZE         sizeof(DEVICE_PCB)
