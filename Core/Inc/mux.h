@@ -43,6 +43,7 @@ typedef enum _AnalogBus
 void MuxInit(SPI_HandleTypeDef *spi);
 uint8_t MMuxSetRow(uint8_t select);
 uint8_t MMuxSetAux(uint8_t select);
+uint8_t IMuxSetRow(uint8_t select);
 void MMuxTest(void);
 void BusSetCurrent(AnalogBus_t analog_bus);
 double MCP3201GetVolt(void);

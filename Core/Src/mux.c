@@ -315,7 +315,7 @@ static inline void MMuxMcp23sWrite (uint8_t mcpaddr, uint8_t reg, uint8_t value)
 /*
  * select: 1..24
  */
-uint8_t IMUXSet(uint8_t select)
+uint8_t IMuxSetRow(uint8_t select)
 {
   uint8_t se = 0;
 
