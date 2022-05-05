@@ -32,7 +32,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define MEAS_HOLD_TIME_MS   5
+#define MEAS_HOLD_TIME_MS   5 //2022.05.05 - 5ms
 
 
 typedef enum _CtrlStatesTypeDef
@@ -43,13 +43,10 @@ typedef enum _CtrlStatesTypeDef
   SDEV_WAIT_FOR_CARD,           //3
   SDEV_TST_MODE_SELECT,
   SDEV_WROK_U7178A,
-  SDEV_WORK_E8783A,
-
   SDEV_BYPASS,
   SDEV_ROWS,
   SDEV_AUX,
   SDEV_INST,
-
   SDEV_FAIL_DETAIL,
   SDEV_NO_CARD,
   SDEV_NOT_SUPPERTED,
@@ -76,14 +73,18 @@ typedef struct _AppTypeDef
   uint16_t FailCnt;
   uint16_t PassCnt;
   uint16_t TestIndex;
-  uint8_t RowsStart;
-  uint8_t RowsEnd;
+
   char UutCardName[20];
+  char TestName[20];
   char ResultLine[20];
+
   UutMode_t UutMode;
   uint8_t FailAcceptFlag;
-  CtrlStatesTypeDef Uut;
+  CtrlStatesTypeDef SavedState;
 
+  uint8_t RowsStart;
+  uint8_t CurrentRow;
+  uint8_t RowsEnd;
 
   TestType2_t CurrentTestType;
   uint8_t CurrentAnalogBus;
@@ -97,68 +98,6 @@ typedef struct _AppTypeDef
 
 }DeviceTypeDef;
 
-
-typedef enum _TestType
-{
-  TEST_DISCON_OPEN = 0,
-  TEST_DISCON_CLOSE,
-  TEST_BYPASS_OPEN,
-  TEST_BYPASS_CLOSE,
-  TEST_ROW_OPEN,
-  TEST_ROW_CLOSE,
-  TEST_AUX_OPEN,
-  TEST_AUX_CLOSE
-
-}TestType_t;
-
-
-typedef struct
-{
-  char Name[25];
- TestType_t TestType;
-  AnalogBus_t AnalogBus;
-  uint8_t IntParm;
-
-} TestTableItem_t;
-
-
-TestTableItem_t TestTable[] =
-{
-    /*01234567890123456789*/
-//    {"01.DISC AB1 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS1, 0 },
-//   {"02.DISC AB2 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS2, 0 },
-//    {"03.DISC AB3 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS3, 0 },
-//    {"04.DISC AB4 CLOSE ", TEST_DISCON_CLOSE, BUS_ABUS4, 0 },
-//    {"05.DISC AB1 OPEN ", TEST_DISCON_OPEN, BUS_ABUS1, 0 },
-//    {"06.DISC AB2 OPEN ", TEST_DISCON_OPEN, BUS_ABUS2, 0 },
-//    {"07 DISC AB3 OPEN ", TEST_DISCON_OPEN, BUS_ABUS3, 0 },
-//    {"08.DISC AB4 OPEN ", TEST_DISCON_OPEN, BUS_ABUS4, 0 },
-
-    {"09.BYPASS PB1 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS1, 0 },
-    {"10.BYPASS PB2 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS2, 0 },
-    {"11.BYPASS PB3 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS3, 0 },
-    {"12.BYPASS PB4 CLOSE ", TEST_BYPASS_CLOSE, BUS_ABUS4, 0 },
-    {"13.BYPASS PB1 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS1, 0 },
-    {"14.BYPASS PB2 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS2, 0 },
-    {"15 BYPASS PB3 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS3, 0 },
-    {"16.BYPASS PB4 OPEN ", TEST_BYPASS_OPEN, BUS_ABUS4, 0 },
-
-    {"17.ABUS1-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS1, 64 },
-    {"18.ABUS2-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS2, 64 },
-    {"19.ABUS3-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS3, 64 },
-    {"20.ABUS4-ROWs OPEN ", TEST_ROW_OPEN, BUS_ABUS4, 64 },
-
-    {"21.ABUS1-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS1, 64 },
-    {"22.ABUS2-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS2, 64 },
-    {"23.ABUS3-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS3, 64 },
-    {"24.ABUS4-ROWs CLOSE ", TEST_ROW_CLOSE, BUS_ABUS4, 64 },
-
-    {"25.ABUS1-AUXs CLOSE ", TEST_AUX_CLOSE, BUS_ABUS1, 64 },
-    {"26.ABUS1-AUXs OPEN ", TEST_AUX_OPEN, BUS_ABUS1, 64 },
-
-};
-
-#define TestTableCount (sizeof(TestTable)/sizeof(TestTableItem_t))
 
 /* USER CODE END PTD */
 
@@ -265,30 +204,29 @@ uint8_t WorkTask(void)
 
         if(SluGetModelName(String, card) == SLU_OK)
         {
-            LcdxyPuts(0,1,String);
-            strcpy(Device.UutCardName, String);
-            if(card == 0x19)
-            {
-              Device.State.Next = SDEV_WROK_U7178A;
-            }
-            if(card == 0x47)
-            {
-              Device.RowsStart = 1;
-              Device.RowsEnd = 64;
-              Device.CurrentAnalogBus = BUS_ABUS1;
-              Device.CurrentTestType = TEST_TYPE_OPEN;
-              Device.State.Next = SDEV_TST_MODE_SELECT;
-            }
-            if(card == 0x43)
-            {
-              Device.RowsStart = 1;
-              Device.RowsEnd = 40;
-              Device.CurrentAnalogBus = BUS_ABUS1;
-              Device.CurrentTestType = TEST_TYPE_OPEN;
-              Device.State.Next = SDEV_TST_MODE_SELECT;
-            }
-            else
-              Device.State.Next = SDEV_NOT_SUPPERTED;
+          strcpy(Device.UutCardName, String);
+          if(card == 0x19)
+          {
+            Device.State.Next = SDEV_WROK_U7178A;
+          }
+          else if(card == 0x47)
+          {
+            Device.RowsStart = 1;
+            Device.RowsEnd = 64;
+            Device.CurrentAnalogBus = BUS_ABUS1;
+            Device.CurrentTestType = TEST_TYPE_OPEN;
+            Device.State.Next = SDEV_TST_MODE_SELECT;
+          }
+          else if(card == 0x43)
+          {
+            Device.RowsStart = 1;
+            Device.RowsEnd = 40;
+            Device.CurrentAnalogBus = BUS_ABUS1;
+            Device.CurrentTestType = TEST_TYPE_OPEN;
+            Device.State.Next = SDEV_TST_MODE_SELECT;
+          }
+          else
+            Device.State.Next = SDEV_NOT_SUPPERTED;
         }
         else
         {              /*01234567890123456789*/
@@ -313,29 +251,27 @@ uint8_t WorkTask(void)
       if(Device.State.Pre != Device.State.Curr)
       {
         LcdClrscr();
-        LcdxyPuts(6,0,Device.UutCardName);
+        LcdxyPuts(7,0,Device.UutCardName);
         LcdxyPuts(0,1,"    VALASZ MODOT!   ");
         LcdxyPuts(0,3,"ZD>FULL     SG>DEBUG");
       }
-
       if(GetBtnGreen() && isBtnGreenReleased)
       {
-        Device.State.Next = SDEV_WORK_E8783A;
+        Device.State.Next = SDEV_BYPASS;
+        Device.CurrentTestType = TEST_TYPE_OPEN;
         Device.UutMode = UUT_MODE_FULL;
         isBtnGreenReleased = 0;
       }
-
       if(GetBtnOrange() && isBtnOrangeReleased)
       {
-        Device.State.Next = SDEV_WORK_E8783A;
+        Device.State.Next = SDEV_BYPASS;
+        Device.CurrentTestType = TEST_TYPE_OPEN;
         Device.UutMode = UUT_MODE_DEBUG;
+        sprintf(String,"     %s            ", Device.UutCardName);
         isBtnOrangeReleased = 0;
       }
-
       break;
     }
-
-
 
     case SDEV_WROK_U7178A:
     {
@@ -361,379 +297,6 @@ uint8_t WorkTask(void)
       }
       break;
     }
-    case SDEV_WORK_E8783A:
-    {
-      if(Device.State.Pre != Device.State.Curr)
-      {
-        LcdClrscr();
-        LcdxyPuts(0,0,"      E8783A        ");
-        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
-      }
-
-      if(TestTableCount == 0)
-      {
-        BusSetCurrent(BUS_OFF);
-        Device.State.Next = END;
-        break;
-      }
-
-      //--- TEST BYPASS & DISCONNECT relays-------------------------------------
-      if( TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
-          TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE ||
-          TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN ||
-          TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE
-      )
-      {
-        BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-        MMuxSetRow(1);
-
-        //All Bypass Relay Off
-        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN)
-          SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x00);
-
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS1)
-        {
-          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
-
-          //Bypass Relay On
-          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x01);
-
-          //One Disconn Relay Off There is negative logic!
-          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x10);
-        }
-
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS2)
-        {
-          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 1);
-
-          //Bypass Relay On
-          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x02);
-
-          //One Disconn Relay Off There is negative logic!
-          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x20);
-        }
-
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS3)
-        {
-          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
-
-          //Bypass Relay On
-          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04);
-
-          //One Disconn Relay Off There is negative logic!
-          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x40);
-        }
-        if(TestTable[Device.TestIndex].AnalogBus ==BUS_ABUS4)
-        {
-          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 1);
-
-          //Bypass Relay On
-          if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x08);
-
-          //One Disconn Relay Off There is negative logic!
-          if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x80);
-        }
-
-        DelayMs(MEAS_HOLD_TIME_MS);
-        double volts = MCP3201GetVolt();
-        double res = GetResistance(volts);
-        uint8_t al = GetALevel();
-        uint8_t bl = GetBLevel();
-        uint8_t isPassed = 0;
-
-        char resstr[8]; //R:200Ω
-        if (res > 1000)
-          sprintf(resstr, "R:>1K\xF4");
-        else if(res < 10)
-          sprintf(resstr, "R:<10\xF4");
-        else
-          sprintf(resstr, "R:%3.0f\xF4", res);
-
-        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN)
-        {
-          if(al && bl)//0...25R
-            isPassed = 0;
-          else if ( !al && bl )//25R...225
-            isPassed = 1;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 0;
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-        {
-          if(al && bl)//0...25R
-            isPassed = 1;
-          else if ( !al && bl )//25R...225
-            isPassed = 0;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 0;
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN)
-        {
-          if(al && bl)//0...25R
-            isPassed = 0;
-          else if ( !al && bl )//25R...225
-            isPassed = 0;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 1;
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE)
-        {
-          if(al && bl)//0...25R
-            isPassed = 1;
-          else if ( !al && bl )//25R...225
-            isPassed = 1;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 0;
-        }
-
-        char rlystr[3];
-        if(TestTable[Device.TestIndex].TestType == TEST_BYPASS_OPEN ||
-            TestTable[Device.TestIndex].TestType == TEST_BYPASS_CLOSE)
-        {
-          switch(TestTable[Device.TestIndex].AnalogBus)
-          {
-            case BUS_ABUS1: strcpy(rlystr,"K1"); break;
-            case BUS_ABUS2: strcpy(rlystr,"K2"); break;
-            case BUS_ABUS3: strcpy(rlystr,"K3"); break;
-            case BUS_ABUS4: strcpy(rlystr,"K4"); break;
-            case BUS_COMM: strcpy(rlystr,"?"); break;
-            case BUS_OFF: strcpy(rlystr,"?"); break;
-          }
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_DISCON_OPEN ||
-            TestTable[Device.TestIndex].TestType == TEST_DISCON_CLOSE)
-        {
-          switch(TestTable[Device.TestIndex].AnalogBus)
-          {
-            case BUS_ABUS1: strcpy(rlystr,"K5"); break;
-            case BUS_ABUS2: strcpy(rlystr,"K6"); break;
-            case BUS_ABUS3: strcpy(rlystr,"K7"); break;
-            case BUS_ABUS4: strcpy(rlystr,"K8"); break;
-            case BUS_COMM: strcpy(rlystr,"?"); break;
-            case BUS_OFF: strcpy(rlystr,"?"); break;
-          }
-        }
-
-        //--- K901 R:200Ω OK or K901 R:200Ω NOK ---
-        if(isPassed)
-        {
-          sprintf(Device.ResultLine, "%s %s OK ", rlystr, resstr);
-        }
-        else
-        {
-          sprintf(Device.ResultLine, "%s %s NOK ", rlystr, resstr);
-          if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
-          {
-            Device.State.Next = SDEV_FAIL_DETAIL;
-            break;
-          }
-        }
-
-        if(isPassed)
-          Device.PassCnt++;
-        else
-          Device.FailCnt++;
-
-        LcdxyPuts(0, 2, Device.ResultLine);
-        //ConsoleWrite(String);
-        SluOpenAllRelays();
-
-        //--- TEST END ---
-        Device.TestIndex++;
-        Device.StepIndex = 1;
-        if( Device.TestIndex > TestTableCount - 1 )
-        {
-          BusSetCurrent(BUS_OFF);
-          Device.State.Next = END;
-        }
-        else
-        {
-          LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
-          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-        }
-      }
-      else
-      {
-        //--- TEST_ROWS ------------------------------------------------
-        if(Device.StepIndex <= TestTable[Device.TestIndex].IntParm)
-        {
-          if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
-          {
-            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-            MMuxSetRow(Device.StepIndex);
-          }
-
-          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
-          {
-            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-            MMuxSetRow(Device.StepIndex);
-
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
-
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
-              SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.StepIndex );
-
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
-              SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.StepIndex );
-
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
-              SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.StepIndex );
-          }
-
-          if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-          {
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
-
-            MMuxSetAux(Device.StepIndex);
-          }
-
-          if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
-          {
-            BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-            MMuxSetAux(Device.StepIndex);
-
-            if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            {
-              SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex);
-              SluSetRelay(SLU_REG_E8783A_ROW_TO_AUX, Device.StepIndex);
-            }
-          }
-
-          DelayMs(MEAS_HOLD_TIME_MS);
-          double volts = MCP3201GetVolt();
-          double res = GetResistance(volts);
-          uint8_t al = GetALevel();
-          uint8_t bl = GetBLevel();
-          uint8_t isPassed = 0;
-
-          char resstr[8]; //R:200Ω
-          if (res > 1000)
-            sprintf(resstr, "R:>1K\xF4");
-          else if(res < 10)
-            sprintf(resstr, "R:<10\xF4");
-          else
-            sprintf(resstr, "R:%3.0f\xF4", res );
-
-          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
-          {
-            if(al && bl) //0...25R
-              isPassed = 1;
-            else if ( !al && bl ) //25R...225
-              isPassed = 1;
-            else if(!al && !bl)//225R... infinite
-              isPassed = 0;
-          }
-          else if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
-          {
-            if(al && bl) //0...25R
-              isPassed = 0;
-            else if (!al && bl)//25R...225
-              isPassed = 0;
-            else if(!al && !bl)//225R... infinite
-              isPassed = 1;
-          }
-          else if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
-          {
-            if(al && bl)//0...25R
-              isPassed = 1;
-            else if ( !al && bl)//25R...225
-              isPassed = 1;
-            else if(!al && !bl)//225R... infinite
-              isPassed = 0;
-          }
-          else if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-          {
-            if(al && bl)//0...25R
-              isPassed = 0;
-            else if (!al && bl)//25R...225
-              isPassed = 0;
-            else if(!al && !bl)//225R... infinite
-              isPassed = 1;
-          }
-
-          if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE ||
-             TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
-          {
-            if(isPassed)
-            {
-              sprintf(Device.ResultLine, "K%d%02d %s OK ",TestTable[Device.TestIndex].AnalogBus , Device.StepIndex, resstr);
-            }
-            else
-            {
-              sprintf(Device.ResultLine, "K%d%02d %s NOK ", TestTable[Device.TestIndex].AnalogBus, Device.StepIndex, resstr);
-              if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
-              {
-                Device.State.Next = SDEV_FAIL_DETAIL;
-                break;
-              }
-            }
-          }
-
-          if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE ||
-             TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-          {
-            //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
-            if(isPassed)
-            {
-              sprintf(Device.ResultLine, "K%d%02d %s OK ", 9, Device.StepIndex, resstr);
-            }
-            else
-            {
-              sprintf(Device.ResultLine, "K%d%02d %s NOK ", 9, Device.StepIndex, resstr);
-              if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
-              {
-                Device.State.Next = SDEV_FAIL_DETAIL;
-                break;
-              }
-            }
-          }
-
-          if(isPassed)
-            Device.PassCnt++;
-          else
-            Device.FailCnt++;
-
-          LcdxyPuts(0, 2, Device.ResultLine);
-          ConsoleWrite(String);
-          SluOpenAllRelays();
-          Device.StepIndex++;
-        }
-        else
-        {
-          //--- TEST END ---
-          Device.TestIndex++;
-          Device.StepIndex = 1;
-          if( Device.TestIndex > TestTableCount - 1 )
-          {
-            BusSetCurrent(BUS_OFF);
-            Device.State.Next = END;
-          }
-          else
-          {
-            LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
-          }
-        }
-      }
-
-      Device.FailAcceptFlag = 0;
-      sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
-      LcdxyPuts(0,3, String);
-      break;
-    }
 
     case SDEV_FAIL_DETAIL:
     {
@@ -742,18 +305,20 @@ uint8_t WorkTask(void)
       //01.DISC AB1 CLOSE
       //K901 R:200Ω OK
       //ZD>ISMET SG>KOVETKE
+      static CtrlStatesTypeDef savedState;
       if(Device.State.Pre != Device.State.Curr)
       {
+        savedState = Device.State.Pre;
         LcdClrscr();
         LcdxyPuts(0,0, "   HIBA RESZLETEI   ");
-        LcdxyPuts(0,1, TestTable[Device.TestIndex].Name);
+        LcdxyPuts(0,1, Device.TestName);
         LcdxyPuts(0,2, Device.ResultLine);
         LcdxyPuts(0,3, "ZD>ISMET SG>KOVETKE");
       }
       if(GetBtnGreen() && isBtnGreenReleased)
       {
         LcdClrscr();
-        Device.State.Next = SDEV_WORK_E8783A;
+        Device.State.Next = savedState;
         isBtnGreenReleased = 0;
       }
 
@@ -761,14 +326,31 @@ uint8_t WorkTask(void)
       {
         LcdClrscr();
         Device.FailAcceptFlag = 1;
-        Device.State.Next = SDEV_WORK_E8783A;
+        Device.State.Next = savedState;
         isBtnOrangeReleased = 0;
       }
       break;
     }
 
+    //01234567890123456789
+    //       E8783A
+    //BYPASS CLOSE
+    //K1 R<10ohm OK
+    //OK:000 NOK:000
     case SDEV_BYPASS:
     {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+        LcdxyPuts(7,0,Device.UutCardName);
+      }
+
+      if(Device.CurrentTestType == TEST_TYPE_OPEN)
+        strcpy(Device.TestName, "TEST:BYPASS OPEN? ");
+      else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
+        strcpy(Device.TestName,"TEST:BYPASS CLOSE? ");
+      LcdxyPuts(0,1, Device.TestName);
+
       BusSetCurrent(Device.CurrentAnalogBus);
       MMuxSetRow(1);
 
@@ -844,18 +426,132 @@ uint8_t WorkTask(void)
         case BUS_ABUS2: strcpy(rlystr,"K2"); break;
         case BUS_ABUS3: strcpy(rlystr,"K3"); break;
         case BUS_ABUS4: strcpy(rlystr,"K4"); break;
-        case BUS_COMM: strcpy(rlystr,"?"); break;
-        case BUS_OFF: strcpy(rlystr,"?"); break;
+        default: strcpy(rlystr,"?"); break;
       }
 
-      //--- K901 R:200Ω OK or K901 R:200Ω NOK ---
+      //--- K101 R:200Ω OK ---
       if(isPassed)
-      {
         sprintf(Device.ResultLine, "%s %s OK ", rlystr, resstr);
-      }
       else
       {
         sprintf(Device.ResultLine, "%s %s NOK ", rlystr, resstr);
+        if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
+        {
+          Device.SavedState = Device.State.Curr;
+          Device.State.Next = SDEV_FAIL_DETAIL;
+          break;
+        }
+      }
+
+      if(isPassed)
+        Device.PassCnt++;
+      else
+        Device.FailCnt++;
+
+      Device.FailAcceptFlag = 0;
+      LcdxyPuts(0, 2, Device.ResultLine);
+      SluOpenAllRelays();
+
+
+      sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
+      LcdxyPuts(0,3, String);
+
+      if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_CLOSE )
+      {
+        Device.State.Next = SDEV_ROWS;
+        Device.CurrentRow = Device.RowsStart;
+        Device.CurrentTestType = TEST_TYPE_OPEN;
+        Device.CurrentAnalogBus = BUS_ABUS1;
+      }
+
+      if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_OPEN)
+      {
+        Device.CurrentTestType = TEST_TYPE_CLOSE;
+        Device.CurrentAnalogBus = BUS_ABUS1;
+      }
+
+      Device.CurrentAnalogBus++;
+      break;
+    }
+    case SDEV_ROWS:
+    {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+        LcdxyPuts(7,0,Device.UutCardName);
+      }
+
+      if(Device.CurrentTestType == TEST_TYPE_OPEN)
+        strcpy(Device.TestName, "TEST:ROW-ABUS OPEN? ");
+      else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
+        strcpy(Device.TestName, "TEST:ROW-ABUS CLOSE? ");
+      LcdxyPuts(0,1, Device.TestName);
+
+      if(Device.CurrentTestType == TEST_TYPE_OPEN)
+      {
+        BusSetCurrent(Device.CurrentAnalogBus);
+        MMuxSetRow(Device.CurrentRow);
+      }
+
+      if(Device.CurrentTestType == TEST_TYPE_CLOSE)
+      {
+        BusSetCurrent(Device.CurrentAnalogBus);
+        MMuxSetRow(Device.CurrentRow);
+
+        if(Device.CurrentAnalogBus == BUS_ABUS1)
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.CurrentRow );
+
+        if(Device.CurrentAnalogBus == BUS_ABUS2)
+          SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.CurrentRow );
+
+        if(Device.CurrentAnalogBus == BUS_ABUS3)
+          SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.CurrentRow );
+
+        if(Device.CurrentAnalogBus == BUS_ABUS4)
+          SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.CurrentRow );
+      }
+
+      DelayMs(MEAS_HOLD_TIME_MS);
+      double volts = MCP3201GetVolt();
+      double res = GetResistance(volts);
+      uint8_t al = GetALevel();
+      uint8_t bl = GetBLevel();
+      uint8_t isPassed = 0;
+
+      char resstr[8]; //R:200Ω
+      if (res > 1000)
+        sprintf(resstr, "R:>1K\xF4");
+      else if(res < 10)
+        sprintf(resstr, "R:<10\xF4");
+      else
+        sprintf(resstr, "R:%3.0f\xF4", res );
+
+      if(Device.CurrentTestType == TEST_TYPE_CLOSE)
+      {
+        if(al && bl) //0...25R
+          isPassed = 1;
+        else if ( !al && bl ) //25R...225
+          isPassed = 1;
+        else if(!al && !bl)//225R... infinite
+          isPassed = 0;
+      }
+      else if(Device.CurrentTestType == TEST_TYPE_OPEN)
+      {
+        if(al && bl) //0...25R
+          isPassed = 0;
+        else if (!al && bl)//25R...225
+          isPassed = 0;
+        else if(!al && !bl)//225R... infinite
+          isPassed = 1;
+      }
+
+      if(isPassed)
+      {
+        sprintf(Device.ResultLine, "K%d%02d %s OK ", Device.CurrentAnalogBus, Device.CurrentRow, resstr);
+      }
+      else
+      {
+        sprintf(Device.ResultLine, "K%d%02d %s NOK ", Device.CurrentAnalogBus, Device.CurrentRow, resstr);
         if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
         {
           Device.State.Next = SDEV_FAIL_DETAIL;
@@ -871,171 +567,120 @@ uint8_t WorkTask(void)
       LcdxyPuts(0, 2, Device.ResultLine);
       SluOpenAllRelays();
 
-      Device.CurrentAnalogBus++;
-
-      if(Device.CurrentAnalogBus > BUS_COMM )
-      {
-        Device.CurrentTestType = TEST_TYPE_CLOSE;
-        Device.CurrentAnalogBus = BUS_ABUS1;
-      }
-
-      if(Device.CurrentAnalogBus > BUS_COMM && Device.CurrentTestType == TEST_TYPE_CLOSE )
-      {
-        Device.State.Next = SDEV_ROWS;
-      }
-
-      Device.FailAcceptFlag = 0;
       sprintf(String, "OK:%d NOK:%d", Device.PassCnt, Device.FailCnt);
       LcdxyPuts(0,3, String);
+
+      if(Device.CurrentRow >= Device.RowsEnd)
+      {
+        if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_CLOSE)
+        {
+          Device.State.Next = SDEV_AUX;
+          Device.CurrentTestType = TEST_TYPE_OPEN;
+          Device.CurrentAnalogBus = BUS_ABUS1;
+          Device.CurrentRow = Device.RowsStart;
+        }
+
+        if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_OPEN)
+        {
+          Device.CurrentTestType = TEST_TYPE_CLOSE;
+          Device.CurrentAnalogBus = BUS_ABUS1;
+        }
+
+        Device.CurrentRow = Device.RowsStart;
+        Device.CurrentAnalogBus++;
+      }
+      else
+      {
+        Device.CurrentRow++;
+      }
       break;
     }
-    case SDEV_ROWS:
+
+    case SDEV_AUX:
     {
+      if(Device.State.Pre != Device.State.Curr)
+      {
+        LcdClrscr();
+        LcdxyPuts(7,0,Device.UutCardName);
+      }
 
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
+      if(Device.CurrentTestType == TEST_TYPE_OPEN)
+        strcpy(Device.TestName, "TEST:AUX-ABUS1 OPEN? ");
+      else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
+        strcpy(Device.TestName, "TEST:AUX-ABUS1 CLOSE? ");
+      LcdxyPuts(0,1, Device.TestName);
+
+      if(Device.CurrentTestType  == TEST_TYPE_OPEN)
+      {
+        if(Device.CurrentAnalogBus == BUS_ABUS1)
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.CurrentRow );
+
+        MMuxSetAux(Device.StepIndex);
+      }
+
+      if(Device.CurrentTestType == TEST_TYPE_CLOSE)
+      {
+        BusSetCurrent(Device.CurrentAnalogBus);
+        MMuxSetAux(Device.CurrentRow);
+
+        if(Device.CurrentAnalogBus == BUS_ABUS1)
         {
-          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-          MMuxSetRow(Device.StepIndex);
+          SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.CurrentRow);
+          SluSetRelay(SLU_REG_E8783A_ROW_TO_AUX, Device.CurrentRow);
         }
+      }
 
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
+      DelayMs(MEAS_HOLD_TIME_MS);
+      double volts = MCP3201GetVolt();
+      double res = GetResistance(volts);
+      uint8_t al = GetALevel();
+      uint8_t bl = GetBLevel();
+      uint8_t isPassed = 0;
+
+      char resstr[8]; //R:200Ω
+      if (res > 1000)
+        sprintf(resstr, "R:>1K\xF4");
+      else if(res < 10)
+        sprintf(resstr, "R:<10\xF4");
+      else
+        sprintf(resstr, "R:%3.0f\xF4", res );
+
+      if(Device.CurrentTestType == TEST_TYPE_CLOSE)
+      {
+        if(al && bl)//0...25R
+          isPassed = 1;
+        else if ( !al && bl)//25R...225
+          isPassed = 1;
+        else if(!al && !bl)//225R... infinite
+          isPassed = 0;
+      }
+      else if(Device.CurrentTestType == TEST_TYPE_OPEN)
+      {
+        if(al && bl)//0...25R
+          isPassed = 0;
+        else if (!al && bl)//25R...225
+          isPassed = 0;
+        else if(!al && !bl)//225R... infinite
+          isPassed = 1;
+      }
+
+      //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
+      if(isPassed)
+      {
+        sprintf(Device.ResultLine, "K%d%02d %s OK ", 9, Device.StepIndex, resstr);
+      }
+      else
+      {
+        sprintf(Device.ResultLine, "K%d%02d %s NOK ", 9, Device.StepIndex, resstr);
+        if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
         {
-          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-          MMuxSetRow(Device.StepIndex);
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS2)
-            SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, Device.StepIndex );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS3)
-            SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, Device.StepIndex );
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS4)
-            SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, Device.StepIndex );
+          Device.State.Next = SDEV_FAIL_DETAIL;
+          break;
         }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-        {
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex );
-
-          MMuxSetAux(Device.StepIndex);
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
-        {
-          BusSetCurrent(TestTable[Device.TestIndex].AnalogBus);
-          MMuxSetAux(Device.StepIndex);
-
-          if(TestTable[Device.TestIndex].AnalogBus == BUS_ABUS1)
-          {
-            SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, Device.StepIndex);
-            SluSetRelay(SLU_REG_E8783A_ROW_TO_AUX, Device.StepIndex);
-          }
-        }
-
-        DelayMs(MEAS_HOLD_TIME_MS);
-        double volts = MCP3201GetVolt();
-        double res = GetResistance(volts);
-        uint8_t al = GetALevel();
-        uint8_t bl = GetBLevel();
-        uint8_t isPassed = 0;
-
-        char resstr[8]; //R:200Ω
-        if (res > 1000)
-          sprintf(resstr, "R:>1K\xF4");
-        else if(res < 10)
-          sprintf(resstr, "R:<10\xF4");
-        else
-          sprintf(resstr, "R:%3.0f\xF4", res );
-
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE)
-        {
-          if(al && bl) //0...25R
-            isPassed = 1;
-          else if ( !al && bl ) //25R...225
-            isPassed = 1;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 0;
-        }
-        else if(TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
-        {
-          if(al && bl) //0...25R
-            isPassed = 0;
-          else if (!al && bl)//25R...225
-            isPassed = 0;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 1;
-        }
-        else if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE)
-        {
-          if(al && bl)//0...25R
-            isPassed = 1;
-          else if ( !al && bl)//25R...225
-            isPassed = 1;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 0;
-        }
-        else if(TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-        {
-          if(al && bl)//0...25R
-            isPassed = 0;
-          else if (!al && bl)//25R...225
-            isPassed = 0;
-          else if(!al && !bl)//225R... infinite
-            isPassed = 1;
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_ROW_CLOSE ||
-           TestTable[Device.TestIndex].TestType == TEST_ROW_OPEN)
-        {
-          if(isPassed)
-          {
-            sprintf(Device.ResultLine, "K%d%02d %s OK ",TestTable[Device.TestIndex].AnalogBus , Device.StepIndex, resstr);
-          }
-          else
-          {
-            sprintf(Device.ResultLine, "K%d%02d %s NOK ", TestTable[Device.TestIndex].AnalogBus, Device.StepIndex, resstr);
-            if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
-            {
-              Device.State.Next = SDEV_FAIL_DETAIL;
-              break;
-            }
-          }
-        }
-
-        if(TestTable[Device.TestIndex].TestType == TEST_AUX_CLOSE ||
-           TestTable[Device.TestIndex].TestType == TEST_AUX_OPEN)
-        {
-          //--- K901 OK R:200Ω or K901 NOK R:200Ω ---
-          if(isPassed)
-          {
-            sprintf(Device.ResultLine, "K%d%02d %s OK ", 9, Device.StepIndex, resstr);
-          }
-          else
-          {
-            sprintf(Device.ResultLine, "K%d%02d %s NOK ", 9, Device.StepIndex, resstr);
-            if(Device.UutMode == UUT_MODE_DEBUG && !Device.FailAcceptFlag)
-            {
-              Device.State.Next = SDEV_FAIL_DETAIL;
-              break;
-            }
-          }
-        }
-
-        if(isPassed)
-          Device.PassCnt++;
-        else
-          Device.FailCnt++;
-
-        LcdxyPuts(0, 2, Device.ResultLine);
-        ConsoleWrite(String);
-        SluOpenAllRelays();
-        Device.StepIndex++;
+      }
       break;
     }
+
     case SDEV_INST:
     {
       break;
