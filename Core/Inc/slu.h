@@ -34,6 +34,8 @@ typedef struct _SluRelayItem{
 #define SLU_REG_CONFIG                  0x01
 #define SLU_REG_STAT_CONT               0x02
 
+#define SLU_BIT_STAT_MANUAL             0x40
+
 /*U7178A 8-Ch. Heavy Duty */
 #define SLU_REG_U7178A_CURRENT_SENSE    0x03
 #define SLU_REG_U7178A_LOAD             0x04

@@ -39,8 +39,7 @@ typedef enum _CtrlStatesTypeDef
 {
   SDEV_START,                   //0
   SDEV_WAIT,                    //1
-  SDEV_IDLE,                    //2
-  SDEV_WAIT_FOR_CARD,           //3
+  SDEV_WAIT_FOR_CARD,
   SDEV_TST_MODE_SELECT,
   SDEV_WROK_U7178A,
   SDEV_BYPASS,
@@ -69,7 +68,6 @@ typedef enum _TestType2
 
 typedef struct _AppTypeDef
 {
-  uint8_t Address;
   uint16_t FailCnt;
   uint16_t PassCnt;
 
@@ -142,15 +140,11 @@ void LiveLedOff(void);
 void LiveLedOn(void);
 void FailLedOn(void);
 void FailLedOff(void);
-
 void Backlight(uint8_t state);
-
 uint8_t WorkTask(void);
-
 uint8_t GetBtnGreen(void);
 uint8_t GetBtnRed(void);
 uint8_t GetBtnOrange(void);
-
 void ConsoleWrite(char *str);
 
 /* USER CODE END PFP */
@@ -169,12 +163,6 @@ uint8_t WorkTask(void)
     {
         Device.State.Next = SDEV_WAIT;
         timestamp = HAL_GetTick();
-      break;
-    }
-
-    case SDEV_IDLE:
-    {
-
       break;
     }
 
@@ -640,7 +628,6 @@ uint8_t WorkTask(void)
         if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_CLOSE)
         {
           Device.State.Next = SDEV_AUX;
-          //Device.State.Next = SDEV_END;
           Device.CurrentTestType = TEST_TYPE_OPEN;
           Device.CurrentAnalogBus = BUS_ABUS1;
         }
@@ -1164,6 +1151,11 @@ int main(void)
   MuxInit(&hspi2);
   SluCardSoftReset();
   Device.UutMode = UUT_MODE_DEBUG;
+
+
+  //***Gameplay place***
+
+  //SluWriteReg(SLU_REG_STAT_CONT, SLU_BIT_STAT_MANUAL);
 
 
   /* USER CODE SDEV_END 2 */
