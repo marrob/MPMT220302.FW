@@ -321,30 +321,30 @@ uint8_t IMuxSetRow(uint8_t select)
 
   switch(select)
   {
-    case 1: se = 0x2F;  //Inst1:  E0:Y15 -> 0x2F
-    case 2: se = 0x2E;  //Inst2:  E0:Y14 -> 0x2E
-    case 3: se = 0x2D;  //Inst3:  E0:Y13 -> 0x2D
-    case 4: se = 0x2C;  //Inst4:  E0:Y12 -> 0x2C
-    case 5: se = 0x2B;  //Inst5:  E0:Y11 -> 0x2B
-    case 6: se = 0x2A;  //Inst6:  E0:Y10 -> 0x2A
-    case 7: se = 0x29;  //Inst7:  E0:Y9  -> 0x29
-    case 8: se = 0x28;  //Inst8:  E0:Y8  -> 0x28
-    case 9: se = 0x27;  //Inst9:  E0:Y7  -> 0x27
-    case 10: se = 0x26; //Inst10: E0:Y6  -> 0x26
-    case 11: se = 0x25; //Inst11: E0:Y5  -> 0x25
-    case 12: se = 0x24; //Inst12: E0:Y4  -> 0x24
-    case 13: se = 0x23; //Inst13: E0:Y3  -> 0x23
-    case 14: se = 0x22; //Inst14: E0:Y2  -> 0x22
-    case 15: se = 0x21; //Inst15: E0:Y1  -> 0x21
-    case 16: se = 0x20; //Inst16: E0:Y0  -> 0x20
-    case 17: se = 0x2F; //Inst17: E1:Y15 -> 0x1F
-    case 18: se = 0x2F; //Inst18: E1:Y14 -> 0x1E
-    case 19: se = 0x2F; //Inst19: E1:Y13 -> 0x1D
-    case 20: se = 0x2F; //Inst20: E1:Y12 -> 0x1C
-    case 21: se = 0x2F; //Inst21: E1:Y11 -> 0x1B
-    case 22: se = 0x2F; //Inst22: E1:Y10 -> 0x1A
-    case 23: se = 0x2F; //Inst23: E1:Y19 -> 0x19
-    case 24: se = 0x2F; //Inst24: E1:Y18 -> 0x18
+    case 1: se = 0x2F; break; //Inst1:  E0:Y15 -> 0x2F
+    case 2: se = 0x2E; break; //Inst2:  E0:Y14 -> 0x2E
+    case 3: se = 0x2D; break; //Inst3:  E0:Y13 -> 0x2D
+    case 4: se = 0x2C; break; //Inst4:  E0:Y12 -> 0x2C
+    case 5: se = 0x2B; break; //Inst5:  E0:Y11 -> 0x2B
+    case 6: se = 0x2A; break; //Inst6:  E0:Y10 -> 0x2A
+    case 7: se = 0x29; break; //Inst7:  E0:Y9  -> 0x29
+    case 8: se = 0x28; break; //Inst8:  E0:Y8  -> 0x28
+    case 9: se = 0x27; break; //Inst9:  E0:Y7  -> 0x27
+    case 10: se = 0x26; break; //Inst10: E0:Y6  -> 0x26
+    case 11: se = 0x25; break; //Inst11: E0:Y5  -> 0x25
+    case 12: se = 0x24; break; //Inst12: E0:Y4  -> 0x24
+    case 13: se = 0x23; break; //Inst13: E0:Y3  -> 0x23
+    case 14: se = 0x22; break; //Inst14: E0:Y2  -> 0x22
+    case 15: se = 0x21; break; //Inst15: E0:Y1  -> 0x21
+    case 16: se = 0x20; break; //Inst16: E0:Y0  -> 0x20
+    case 17: se = 0x1F; break; //Inst17: E1:Y15 -> 0x1F
+    case 18: se = 0x1E; break; //Inst18: E1:Y14 -> 0x1E
+    case 19: se = 0x1D; break; //Inst19: E1:Y13 -> 0x1D
+    case 20: se = 0x1C; break; //Inst20: E1:Y12 -> 0x1C
+    case 21: se = 0x1B; break; //Inst21: E1:Y11 -> 0x1B
+    case 22: se = 0x1A; break; //Inst22: E1:Y10 -> 0x1A
+    case 23: se = 0x19; break; //Inst23: E1:Y19 -> 0x19
+    case 24: se = 0x18; break; //Inst24: E1:Y18 -> 0x18
   }
 
   if(select == 0)

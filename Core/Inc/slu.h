@@ -27,6 +27,9 @@ typedef struct _SluRelayItem{
 #define SLU_ARG_ERROR     2
 #define SLU_UNKNWON       3
 
+#define SLU_ROW_START             1
+#define SLU_E8782A_INST_ROW_END   24
+
 #define SLU_REG_CARD_TYPE               0x00
 #define SLU_REG_CONFIG                  0x01
 #define SLU_REG_STAT_CONT               0x02

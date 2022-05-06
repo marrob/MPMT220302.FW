@@ -32,7 +32,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define MEAS_HOLD_TIME_MS   50 //2022.05.05 - 5ms
+#define MEAS_HOLD_TIME_MS   10 //2022.05.06 - 10ms
 
 
 typedef enum _CtrlStatesTypeDef
@@ -81,7 +81,6 @@ typedef struct _AppTypeDef
   uint8_t FailAcceptFlag;
   CtrlStatesTypeDef SavedState;
 
-  uint8_t RowsStart;
   uint8_t CurrentRow;
   uint8_t RowsEnd;
 
@@ -111,8 +110,7 @@ typedef struct _AppTypeDef
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define E8782A_INST_ROW_END   24
-#define E8782A_INST_ROW_START 1
+
 
 /* USER CODE END PD */
 
@@ -220,7 +218,6 @@ uint8_t WorkTask(void)
           }
           else if(card == 0x47)
           {
-            Device.RowsStart = 1;
             Device.RowsEnd = 64;
             Device.CurrentAnalogBus = BUS_ABUS1;
             Device.CurrentTestType = TEST_TYPE_OPEN;
@@ -228,23 +225,18 @@ uint8_t WorkTask(void)
           }
           else if(card == 0x43)
           {
-            Device.RowsStart = 1;
             Device.RowsEnd = 40;
             Device.CurrentAnalogBus = BUS_ABUS1;
             Device.CurrentTestType = TEST_TYPE_OPEN;
             Device.State.Next = SDEV_TST_MODE_SELECT;
-            Device.State.Next = SDEV_BYPASS;
-            //Device.State.Next =  SDEV_ROWS;
-            //Device.State.Next = SDEV_AUX;
-            //Device.State.Next = SDEV_INST_ROW;
           }
           else
             Device.State.Next = SDEV_NOT_SUPPERTED;
 
-          Device.CurrentRow = Device.RowsStart;
+          Device.CurrentRow = SLU_ROW_START;
         }
         else
-        {              /*01234567890123456789*/
+        {
           sprintf(String,"Keresem...Varj! %d ", cardTryCnt);
           LcdxyPuts(0,1,String);
           timestamp = HAL_GetTick();
@@ -273,8 +265,6 @@ uint8_t WorkTask(void)
       if(GetBtnGreen() && isBtnGreenReleased)
       {
         Device.State.Next = SDEV_BYPASS;
-        //Device.State.Next =  SDEV_ROWS;
-        //Device.State.Next = SDEV_AUX;
         Device.CurrentTestType = TEST_TYPE_OPEN;
         Device.UutMode = UUT_MODE_FULL;
         isBtnGreenReleased = 0;
@@ -297,7 +287,6 @@ uint8_t WorkTask(void)
       if(Device.State.Pre != Device.State.Curr)
       {
         LcdClrscr();
-                     /*01234567890123456789*/
         LcdxyPuts(0,0,"      U7178A        ");
         relay = 0;
         timestamp = HAL_GetTick();
@@ -319,8 +308,8 @@ uint8_t WorkTask(void)
     {
       //01234567890123456789
       //   HIBA RESZLETEI
-      //01.DISC AB1 CLOSE
-      //K901 R:200Ω OK
+      //BYPS-ROW01-BU1 OPN
+      //K1 R:<10 NOK
       //ZD>ISMET SG>KOVETKE
       static CtrlStatesTypeDef savedState;
       if(Device.State.Pre != Device.State.Curr)
@@ -349,11 +338,6 @@ uint8_t WorkTask(void)
       break;
     }
 
-    //01234567890123456789
-    //       E8783A
-    //BYPASS CLOSE
-    //K1 R<10ohm OK
-    //OK:000 NOK:000
     case SDEV_BYPASS:
     {
       if(Device.State.Pre != Device.State.Curr)
@@ -363,9 +347,9 @@ uint8_t WorkTask(void)
       }
 
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
-        sprintf(Device.TestName,"BYPS-ROW1-BUS%d OPN?", Device.CurrentAnalogBus);
+        sprintf(Device.TestName,"BYPS-ROW01-BUS%d OPN", Device.CurrentAnalogBus);
       else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
-        sprintf(Device.TestName,"BYPS-ROW1-BUS%d CLS?",Device.CurrentAnalogBus);
+        sprintf(Device.TestName,"BYPS-ROW01-BUS%d CLS",Device.CurrentAnalogBus);
       LcdxyPuts(0,1, Device.TestName);
 
       BusSetCurrent(Device.CurrentAnalogBus);
@@ -374,34 +358,32 @@ uint8_t WorkTask(void)
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
         SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x00);
 
-
       if(strcmp(Device.UutName,"E8783A") == 0)
       {
         if(Device.CurrentAnalogBus == BUS_ABUS1)
         {
           SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1);
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x01);
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x01); //ABUS1 & ROW1: K101
         }
 
         if(Device.CurrentAnalogBus ==BUS_ABUS2)
         {
           SluSetRelay(SLU_REG_E8783A_ABUS2_TO_ROW, 1);
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x02);
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x02); //ABUS1 & ROW1: K201
         }
-
         if(Device.CurrentAnalogBus == BUS_ABUS3)
         {
           SluSetRelay(SLU_REG_E8783A_ABUS3_TO_ROW, 1);
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04);
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04); //ABUS1 & ROW1: K301
         }
         if(Device.CurrentAnalogBus == BUS_ABUS4)
         {
           SluSetRelay(SLU_REG_E8783A_ABUS4_TO_ROW, 1);
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
-            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x08);
+            SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x08); //ABUS1 & ROW1: K401
         }
       }
       else if(strcmp(Device.UutName,"E8782A") == 0)
@@ -415,20 +397,20 @@ uint8_t WorkTask(void)
 
         if(Device.CurrentAnalogBus ==BUS_ABUS2)
         {
-          SluSetRelay(SLU_REG_E8782A_ABUS2_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8782A_ABUS2_TO_ROW, 1); //ABUS2 & ROW1: K225
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
             SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x02);
         }
 
         if(Device.CurrentAnalogBus == BUS_ABUS3)
         {
-          SluSetRelay(SLU_REG_E8782A_ABUS3_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8782A_ABUS3_TO_ROW, 1); //ABUS3 & ROW1: K325
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
             SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x04);
         }
         if(Device.CurrentAnalogBus == BUS_ABUS4)
         {
-          SluSetRelay(SLU_REG_E8782A_ABUS4_TO_ROW, 1);
+          SluSetRelay(SLU_REG_E8782A_ABUS4_TO_ROW, 1); //ABUS4 & ROW1: K425
           if(Device.CurrentTestType == TEST_TYPE_CLOSE)
             SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x08);
         }
@@ -441,7 +423,7 @@ uint8_t WorkTask(void)
       uint8_t bl = GetBLevel();
       uint8_t isPassed = 0;
 
-      char resstr[8]; //R:200Ω
+      char resstr[8];
       if (res > 1000)
         sprintf(resstr, "R:>1K\xF4");
       else if(res < 10)
@@ -492,13 +474,14 @@ uint8_t WorkTask(void)
           break;
         }
       }
+      Device.FailAcceptFlag = 0;
 
       if(isPassed)
         Device.PassCnt++;
       else
         Device.FailCnt++;
 
-      Device.FailAcceptFlag = 0;
+
       LcdxyPuts(0, 2, Device.ResultLine);
       SluOpenAllRelays();
 
@@ -512,7 +495,7 @@ uint8_t WorkTask(void)
         if(Device.CurrentTestType == TEST_TYPE_CLOSE)
         {
           Device.State.Next = SDEV_ROWS;
-          Device.CurrentRow = Device.RowsStart;
+          Device.CurrentRow = SLU_ROW_START;
           Device.CurrentTestType = TEST_TYPE_OPEN;
         }
         else if(Device.CurrentTestType == TEST_TYPE_OPEN)
@@ -639,6 +622,7 @@ uint8_t WorkTask(void)
           break;
         }
       }
+      Device.FailAcceptFlag = 0;
 
       if(isPassed)
         Device.PassCnt++;
@@ -669,7 +653,7 @@ uint8_t WorkTask(void)
         {
           Device.CurrentAnalogBus++;
         }
-        Device.CurrentRow = Device.RowsStart;
+        Device.CurrentRow = SLU_ROW_START;
       }
       else
       {
@@ -770,6 +754,7 @@ uint8_t WorkTask(void)
           break;
         }
       }
+      Device.FailAcceptFlag = 0;
 
       LcdxyPuts(0, 2, Device.ResultLine);
       SluOpenAllRelays();
@@ -798,7 +783,7 @@ uint8_t WorkTask(void)
         {
           Device.CurrentTestType = TEST_TYPE_CLOSE;
         }
-        Device.CurrentRow = Device.RowsStart;
+        Device.CurrentRow = SLU_ROW_START;
       }
       else
       {
@@ -816,9 +801,9 @@ uint8_t WorkTask(void)
       }
 
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
-        sprintf(Device.TestName, "INST%02d-ABUS%d OPN", Device.CurrentRow, Device.CurrentAnalogBus);
+        sprintf(Device.TestName, "INST%02d-BUS%d OPN", Device.CurrentRow, Device.CurrentAnalogBus);
       else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
-        sprintf(Device.TestName, "INST%02d-ABUS%d CLS?", Device.CurrentRow, Device.CurrentAnalogBus);
+        sprintf(Device.TestName, "INST%02d-BUS%d CLS", Device.CurrentRow, Device.CurrentAnalogBus);
       LcdxyPuts(0,1, Device.TestName);
 
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
@@ -830,7 +815,7 @@ uint8_t WorkTask(void)
       if(Device.CurrentTestType == TEST_TYPE_CLOSE)
       {
         BusSetCurrent(Device.CurrentAnalogBus);
-        MMuxSetRow(Device.CurrentRow);
+        IMuxSetRow(Device.CurrentRow);
 
         if(Device.CurrentAnalogBus == BUS_ABUS1)
           SluSetRelay(SLU_REG_E8782A_ABUS1_TO_INST, Device.CurrentRow );
@@ -865,7 +850,7 @@ uint8_t WorkTask(void)
         if(al && bl) //0...25R
           isPassed = 1;
         else if ( !al && bl ) //25R...225
-          isPassed = 1;
+          isPassed = 0;
         else if(!al && !bl)//225R... infinite
           isPassed = 0;
       }
@@ -892,6 +877,7 @@ uint8_t WorkTask(void)
           break;
         }
       }
+      Device.FailAcceptFlag = 0;
 
       if(isPassed)
         Device.PassCnt++;
@@ -904,12 +890,11 @@ uint8_t WorkTask(void)
       LcdxyPuts(0, 2, Device.ResultLine);
       SluOpenAllRelays();
 
-      if(Device.CurrentRow == E8782A_INST_ROW_END)
+      if(Device.CurrentRow == SLU_E8782A_INST_ROW_END)
       {
         if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_CLOSE)
         {
-          //Device.State.Next = SDEV_AUX;
-          Device.State.Next = SDEV_END;
+          Device.State.Next = SDEV_INST_UUT;
           Device.CurrentTestType = TEST_TYPE_OPEN;
           Device.CurrentAnalogBus = BUS_ABUS1;
         }
@@ -922,7 +907,7 @@ uint8_t WorkTask(void)
         {
           Device.CurrentAnalogBus++;
         }
-        Device.CurrentRow = E8782A_INST_ROW_START;
+        Device.CurrentRow = SLU_ROW_START;
       }
       else
       {
@@ -930,8 +915,6 @@ uint8_t WorkTask(void)
       }
       break;
     }
-
-
     case SDEV_INST_UUT:
     {
       if(Device.State.Pre != Device.State.Curr)
@@ -941,9 +924,9 @@ uint8_t WorkTask(void)
       }
 
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
-        sprintf(Device.TestName, "INST%02d-UUTComm OPN", Device.CurrentRow);
+        sprintf(Device.TestName, "INST%02d-UUT OPN", Device.CurrentRow);
       else if (Device.CurrentTestType == TEST_TYPE_CLOSE)
-        sprintf(Device.TestName, "INST%02d-UUTComm CLS?", Device.CurrentRow);
+        sprintf(Device.TestName, "INST%02d-UUT CLS", Device.CurrentRow);
       LcdxyPuts(0,1, Device.TestName);
 
       BusSetCurrent(BUS_COMM);
@@ -951,7 +934,6 @@ uint8_t WorkTask(void)
 
       if(Device.CurrentTestType == TEST_TYPE_CLOSE)
         SluSetRelay(SLU_REG_E8782A_UUT_TO_INST, Device.CurrentRow);
-
 
       DelayMs(MEAS_HOLD_TIME_MS);
       double volts = MCP3201GetVolt();
@@ -988,9 +970,9 @@ uint8_t WorkTask(void)
       }
 
       if(isPassed)
-        sprintf(Device.ResultLine, "K%d%02d %s OK ", Device.CurrentAnalogBus, Device.CurrentRow, resstr);
+        sprintf(Device.ResultLine, "K9%02d %s OK ", Device.CurrentRow, resstr);
       else
-        sprintf(Device.ResultLine, "K%d%02d %s NOK ", Device.CurrentAnalogBus, Device.CurrentRow, resstr);
+        sprintf(Device.ResultLine, "K9%02d %s NOK ", Device.CurrentRow, resstr);
 
       if(!isPassed)
       {
@@ -1000,6 +982,7 @@ uint8_t WorkTask(void)
           break;
         }
       }
+      Device.FailAcceptFlag = 0;
 
       if(isPassed)
         Device.PassCnt++;
@@ -1012,25 +995,19 @@ uint8_t WorkTask(void)
       LcdxyPuts(0, 2, Device.ResultLine);
       SluOpenAllRelays();
 
-      if(Device.CurrentRow == E8782A_INST_ROW_END)
+      if(Device.CurrentRow == SLU_E8782A_INST_ROW_END)
       {
-        if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_CLOSE)
+        if(Device.CurrentTestType == TEST_TYPE_CLOSE)
         {
-          //Device.State.Next = SDEV_AUX;
           Device.State.Next = SDEV_END;
           Device.CurrentTestType = TEST_TYPE_OPEN;
-          Device.CurrentAnalogBus = BUS_ABUS1;
         }
-        else if(Device.CurrentAnalogBus == BUS_ABUS4 && Device.CurrentTestType == TEST_TYPE_OPEN)
+        else if(Device.CurrentTestType == TEST_TYPE_OPEN)
         {
           Device.CurrentTestType = TEST_TYPE_CLOSE;
-          Device.CurrentAnalogBus = BUS_ABUS1;
         }
-        else
-        {
-          Device.CurrentAnalogBus++;
-        }
-        Device.CurrentRow = E8782A_INST_ROW_START;
+
+        Device.CurrentRow = SLU_ROW_START;
       }
       else
       {
@@ -1048,6 +1025,7 @@ uint8_t WorkTask(void)
       //SG>UJRA"
       if(Device.State.Pre != Device.State.Curr)
       {
+        BusSetCurrent(BUS_OFF);
         LcdClrscr();
         sprintf(String,"%s TESZT VEGE", Device.UutName);
         LcdxyPuts(0,0, String);
@@ -1188,15 +1166,6 @@ int main(void)
   Device.UutMode = UUT_MODE_DEBUG;
 
 
- // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 1 );
-
- // SluSetRelay(SLU_REG_E8783A_ABUS1_TO_ROW, 64 );
-  //0x14
-  //0x15 0x80
-  //0x1D
-  //MMuxTest();
-
-
   /* USER CODE SDEV_END 2 */
 
   /* Infinite loop */
@@ -1212,8 +1181,6 @@ int main(void)
    if(HAL_GetTick() - timestamp > 100)
    {
      timestamp = HAL_GetTick();
-     //sprintf(string,"%lu", counter++);
-     //LcdxyPuts(1,1, string);
    }
 
    LiveLedTask(&hLiveLed);
