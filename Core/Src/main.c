@@ -1297,19 +1297,19 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  //*** Reset Everyting ***
+  /*** Reset Everyting ***/
   HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
   DelayMs(100);
   HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
   DelayMs(5);
 
-  //*** LiveLed ***
+  /*** LiveLed ***/
   hLiveLed.LedOffFnPtr = &LiveLedOff;
   hLiveLed.LedOnFnPtr = &LiveLedOn;
   hLiveLed.HalfPeriodTimeMs = 500;
   LiveLedInit(&hLiveLed);
 
-  //*** LCD ***
+  /*** LCD ***/
   LcdInit(LCD_FUNC_4B_2L, LCD_MODE_DISP, LCD_MODE_DISP);
                /*01234567890123456789*/
   LcdxyPuts(0, 0,"  PIN MATRIX TESTER ");
@@ -1326,11 +1326,7 @@ int main(void)
   SluCardSoftReset();
   Device.UutMode = UUT_MODE_DEBUG;
 
-
-  //***Gameplay place***
-
-  //
-
+  /***Gameplay place***/
 
   /* USER CODE SDEV_END 2 */
 
@@ -1601,25 +1597,24 @@ void LiveLedOff(void)
 {
   HAL_GPIO_WritePin(LIVE_LED_GPIO_Port, LIVE_LED_Pin, GPIO_PIN_RESET);
 }
-uint8_t red = 0;
 
 /* Buttons--------------------------------------------------------------------*/
 uint8_t GetBtnGreen(void)
 {
-  red = HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin);
-  return  red == GPIO_PIN_RESET;
+  uint8_t temp = HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin);
+  return  temp == GPIO_PIN_RESET;
 }
 
 uint8_t GetBtnRed(void)
 {
-  red = HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin);
-  return  red == GPIO_PIN_RESET;
+  uint8_t temp = HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin);
+  return  temp == GPIO_PIN_RESET;
 }
 
 uint8_t GetBtnOrange(void)
 {
-  red = HAL_GPIO_ReadPin(BTN3_GPIO_Port, BTN3_Pin);
-  return  red == GPIO_PIN_RESET;
+  uint8_t temp = HAL_GPIO_ReadPin(BTN3_GPIO_Port, BTN3_Pin);
+  return  temp == GPIO_PIN_RESET;
 }
 
 /* USER CODE END 4 */

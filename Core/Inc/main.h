@@ -158,11 +158,11 @@ void Error_Handler(void);
 #define LCD_RS_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
-#define DEVICE_NAME             "MPMT220302"    /*!< Eszkoz neve pl.:MDIO130204*/
+#define DEVICE_NAME             "MPMT220302"
 #define DEVICE_NAME_SIZE        sizeof(DEVICE_NAME)
-#define DEVICE_FW               "220506_2027"   /*!< Eszkoz Firmware verzioszama pl.:"220428_1004"*/
+#define DEVICE_FW               "220623_1100"
 #define DEVICE_FW_SIZE          sizeof(DEVICE_FW)
-#define DEVICE_PCB              "00"            /*!< Eszkoz PCB verzioszama pl.:"A0"*/
+#define DEVICE_PCB              "00"
 #define DEVICE_PCB_SIZE         sizeof(DEVICE_PCB)
 #define DEVICE_MNF              "github.com/marrob"
 #define DEVICE_MNF_SIZE         sizeof(DEVICE_MNF)
