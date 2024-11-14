@@ -345,8 +345,8 @@ uint8_t WorkTask(void)
 
       if(Device.CurrentTestType == TEST_TYPE_OPEN)
       {
-        SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x00);
-        SluWriteReg(SLU_REG_STAT_CONT, SLU_BIT_STAT_MANUAL);
+        SluWriteReg(SLU_REG_E8783A_E8782A_BYPAS, 0x00); //Bypass relék kikapcsolása, ez nincs hatással a disconnect relékre
+        SluWriteReg(SLU_REG_STAT_CONT, SLU_BIT_STAT_MANUAL); //Ez egy nem dokumentált bit amivel ki/be kapcsolható a disconnect
       }
 
       if(strcmp(Device.UutName,"E8783A") == 0)
